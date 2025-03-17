@@ -1,0 +1,404 @@
+import datetime
+import sys
+import traceback
+from typing import Optional, Union
+
+import discord
+from discord.ext import commands
+
+from core.basecog import BaseCog
+import config
+
+
+class ErrorHandler(BaseCog):
+    """advanced error handling for the bot"""
+
+    async def _send_error_message(
+        self,
+        ctx: Union[commands.Context, discord.Interaction],
+        error_type: str,
+        error_msg: str,
+        should_trace: bool = False,
+    ) -> Optional[discord.Message]:
+        """send a formatted error message to the context
+
+        Args:
+            ctx: The command context or interaction
+            error_type: The type or title of the error
+            error_msg: The error message to display
+            should_trace: Whether to include traceback info
+
+        Returns:
+            The sent message, if any
+        """
+        embed = self.error_embed(title=error_type.lower(), description=error_msg)
+
+        # Add traceback info if needed
+        if should_trace:
+            # Get the traceback info
+            tb = traceback.format_exception(
+                type(error_msg), error_msg, error_msg.__traceback__
+            )
+            tb_text = "".join(tb)
+
+            # Truncate traceback if it's too long
+            if len(tb_text) > 1000:
+                tb_text = f"{tb_text[:997]}..."
+
+            embed.add_field(
+                name="traceback", value=f"```py\n{tb_text}\n```", inline=False
+            )
+
+        # Add timestamp
+        embed.timestamp = discord.utils.utcnow()
+
+        # Send the error message
+        if isinstance(ctx, commands.Context):
+            return await ctx.send(embed=embed)
+        elif isinstance(ctx, discord.Interaction):
+            if ctx.response.is_done():
+                return await ctx.followup.send(embed=embed, ephemeral=True)
+            else:
+                await ctx.response.send_message(embed=embed, ephemeral=True)
+                return await ctx.original_response()
+        return None
+
+    @commands.Cog.listener()
+    async def on_command_error(self, ctx: commands.Context, error: Exception) -> None:
+        """handle command errors (prefix commands)"""
+        # Don't handle errors that have been handled locally
+        if hasattr(ctx, "handled_error") and ctx.handled_error:
+            return
+
+        # Get the original error if it's wrapped
+        if hasattr(error, "original"):
+            error = error.original
+
+        # Log the error
+        self.logger.error(f"Command error in {ctx.command}: {error}", exc_info=error)
+
+        # Handle different error types
+        if isinstance(error, commands.CommandNotFound):
+            # Don't respond to command not found errors
+            return
+
+        elif isinstance(error, commands.MissingRequiredArgument):
+            param_name = error.param.name
+            await self._send_error_message(
+                ctx,
+                "missing argument",
+                f"the `{param_name}` argument is required. check `{config.PREFIX}help {ctx.command}` for usage.",
+            )
+
+        elif isinstance(error, commands.BadArgument):
+            await self._send_error_message(
+                ctx,
+                "invalid argument",
+                f"an argument provided was invalid: {str(error)}",
+            )
+
+        elif isinstance(error, commands.MissingPermissions):
+            perms = ", ".join(f"`{p}`" for p in error.missing_permissions)
+            await self._send_error_message(
+                ctx,
+                "permission denied",
+                f"you need {perms} permission(s) to use this command.",
+            )
+
+        elif isinstance(error, commands.BotMissingPermissions):
+            perms = ", ".join(f"`{p}`" for p in error.missing_permissions)
+            await self._send_error_message(
+                ctx,
+                "missing permissions",
+                f"i need {perms} permission(s) to execute this command.",
+            )
+
+        elif isinstance(error, commands.NotOwner):
+            await self._send_error_message(
+                ctx, "owner only", "this command can only be used by the bot owner."
+            )
+
+        elif isinstance(error, commands.CommandOnCooldown):
+            await self._send_error_message(
+                ctx,
+                "cooldown",
+                f"this command is on cooldown. try again in {error.retry_after:.2f}s.",
+            )
+
+        elif isinstance(error, commands.MaxConcurrencyReached):
+            await self._send_error_message(
+                ctx,
+                "max concurrency",
+                f"this command is already being used by the maximum number of users. ({error.number} {error.per.name})",
+            )
+
+        elif isinstance(error, commands.DisabledCommand):
+            await self._send_error_message(
+                ctx, "command disabled", "this command is currently disabled."
+            )
+
+        elif isinstance(error, commands.NoPrivateMessage):
+            await self._send_error_message(
+                ctx,
+                "server only",
+                "this command can only be used in servers, not private messages.",
+            )
+
+        elif isinstance(error, commands.PrivateMessageOnly):
+            await self._send_error_message(
+                ctx,
+                "dm only",
+                "this command can only be used in private messages, not servers.",
+            )
+
+        elif isinstance(error, commands.CheckFailure):
+            await self._send_error_message(
+                ctx, "check failed", "you do not have permission to use this command."
+            )
+
+        else:
+            # Log unexpected errors to console with traceback
+            self.logger.error("Unhandled command error", exc_info=error)
+
+            # Log to a channel if configured
+            await self._log_to_channel(ctx, error)
+
+            # Send a generic error message with traceback for owners
+            is_owner = await self.bot.is_owner(ctx.author)
+
+            await self._send_error_message(
+                ctx,
+                "command error",
+                f"an unexpected error occurred while executing this command. please try again later.",
+                should_trace=is_owner,
+            )
+
+    @commands.Cog.listener()
+    async def on_application_command_error(
+        self, interaction: discord.Interaction, error: Exception
+    ) -> None:
+        """handle application command errors (slash commands)"""
+        # Get the command that was executed
+        command_name = interaction.command.name if interaction.command else "Unknown"
+
+        # Get the original error if it's wrapped
+        if hasattr(error, "original"):
+            error = error.original
+
+        # Log the error
+        self.logger.error(
+            f"Slash command error in {command_name}: {error}", exc_info=error
+        )
+
+        # Handle different error types
+        if isinstance(error, discord.app_commands.CommandNotFound):
+            # Don't respond to command not found errors
+            return
+
+        elif isinstance(error, discord.app_commands.MissingPermissions):
+            perms = ", ".join(f"`{p}`" for p in error.missing_permissions)
+            await self._send_error_message(
+                interaction,
+                "permission denied",
+                f"you need {perms} permission(s) to use this command.",
+            )
+
+        elif isinstance(error, discord.app_commands.BotMissingPermissions):
+            perms = ", ".join(f"`{p}`" for p in error.missing_permissions)
+            await self._send_error_message(
+                interaction,
+                "missing permissions",
+                f"i need {perms} permission(s) to execute this command.",
+            )
+
+        elif isinstance(error, discord.app_commands.CommandOnCooldown):
+            await self._send_error_message(
+                interaction,
+                "cooldown",
+                f"this command is on cooldown. try again in {error.retry_after:.2f}s.",
+            )
+
+        elif isinstance(error, discord.app_commands.CheckFailure):
+            await self._send_error_message(
+                interaction,
+                "check failed",
+                "you do not have permission to use this command.",
+            )
+
+        else:
+            # Log unexpected errors to console with traceback
+            self.logger.error("Unhandled slash command error", exc_info=error)
+
+            # Log to a channel if configured
+            await self._log_to_channel(interaction, error)
+
+            # Send a generic error message with traceback for owners
+            is_owner = await self.bot.is_owner(interaction.user)
+
+            await self._send_error_message(
+                interaction,
+                "command error",
+                f"an unexpected error occurred while executing this command. please try again later.",
+                should_trace=is_owner,
+            )
+
+    async def _log_to_channel(self, ctx, error):
+        """log an error to a channel if configured"""
+        try:
+            error_channel_id = getattr(self.bot, "error_channel_id", None)
+            if not error_channel_id:
+                return
+
+            channel = self.bot.get_channel(error_channel_id)
+            if not channel:
+                return
+
+            # Create an embed for the error
+            embed = discord.Embed(
+                title="Command Error Log",
+                color=config.ERROR_COLOR,
+                timestamp=discord.utils.utcnow(),
+            )
+
+            # Add command info
+            if isinstance(ctx, commands.Context):
+                embed.add_field(
+                    name="command info",
+                    value=(
+                        f"Command: `{ctx.command}`\n"
+                        f"Channel: {ctx.channel.mention} (`{ctx.channel.id}`)\n"
+                        f"User: {ctx.author.mention} (`{ctx.author.id}`)\n"
+                        f"Guild: `{ctx.guild.name if ctx.guild else 'DM'}` (`{ctx.guild.id if ctx.guild else 'N/A'}`)"
+                    ),
+                    inline=False,
+                )
+                embed.add_field(
+                    name="message",
+                    value=f"```\n{ctx.message.content[:1000]}\n```",
+                    inline=False,
+                )
+            elif isinstance(ctx, discord.Interaction):
+                command_name = ctx.command.name if ctx.command else "Unknown"
+                embed.add_field(
+                    name="command info",
+                    value=(
+                        f"Command: `{command_name}`\n"
+                        f"Channel: {ctx.channel.mention} (`{ctx.channel.id}`)\n"
+                        f"User: {ctx.user.mention} (`{ctx.user.id}`)\n"
+                        f"Guild: `{ctx.guild.name if ctx.guild else 'DM'}` (`{ctx.guild.id if ctx.guild else 'N/A'}`)"
+                    ),
+                    inline=False,
+                )
+
+            # Add error info
+            embed.add_field(
+                name="error type", value=f"`{type(error).__name__}`", inline=False
+            )
+
+            # Format the traceback
+            tb = traceback.format_exception(type(error), error, error.__traceback__)
+            tb_text = "".join(tb)
+
+            # Split traceback into chunks if needed
+            if len(tb_text) > 1000:
+                chunks = [tb_text[i : i + 1000] for i in range(0, len(tb_text), 1000)]
+                for i, chunk in enumerate(chunks):
+                    embed.add_field(
+                        name=f"traceback part {i+1}/{len(chunks)}",
+                        value=f"```py\n{chunk}\n```",
+                        inline=False,
+                    )
+            else:
+                embed.add_field(
+                    name="traceback", value=f"```py\n{tb_text}\n```", inline=False
+                )
+
+            # Send the embed
+            await channel.send(embed=embed)
+
+        except Exception as e:
+            # If error logging fails, just log to console
+            self.logger.error(f"Failed to log error to channel: {e}", exc_info=e)
+
+    @commands.command(name="error", hidden=True)
+    @commands.is_owner()
+    async def force_error(self, ctx, error_type: str = None):
+        """owner command to test the error handler with different error types"""
+        if error_type == "basic":
+            raise Exception("This is a basic error for testing")
+        elif error_type == "command":
+            raise commands.CommandError("This is a command error for testing")
+        elif error_type == "missing_arg":
+            raise commands.MissingRequiredArgument(ctx.command.params["error_type"])
+        elif error_type == "bad_arg":
+            raise commands.BadArgument("This argument is bad for testing")
+        elif error_type == "missing_perm":
+            raise commands.MissingPermissions(["manage_messages"])
+        elif error_type == "bot_missing_perm":
+            raise commands.BotMissingPermissions(["manage_messages"])
+        elif error_type == "not_owner":
+            raise commands.NotOwner("You are not the owner")
+        elif error_type == "cooldown":
+            raise commands.CommandOnCooldown(commands.Cooldown(1, 60), 30)
+        elif error_type == "max_concurrency":
+            raise commands.MaxConcurrencyReached(
+                commands.MaxConcurrency(1, commands.BucketType.user)
+            )
+        elif error_type == "disabled":
+            raise commands.DisabledCommand("This command is disabled")
+        elif error_type == "no_dm":
+            raise commands.NoPrivateMessage("This command cannot be used in DMs")
+        elif error_type == "dm_only":
+            raise commands.PrivateMessageOnly("This command can only be used in DMs")
+        elif error_type == "check_failure":
+            raise commands.CheckFailure("Check failed")
+        else:
+            await ctx.send(
+                embed=self.embed(
+                    title="error tester",
+                    description=(
+                        "available error types:\n"
+                        "`basic`, `command`, `missing_arg`, `bad_arg`, `missing_perm`, "
+                        "`bot_missing_perm`, `not_owner`, `cooldown`, `max_concurrency`, "
+                        "`disabled`, `no_dm`, `dm_only`, `check_failure`"
+                    ),
+                )
+            )
+
+    @commands.command(name="error_channel", hidden=True)
+    @commands.is_owner()
+    async def set_error_channel(self, ctx, channel: discord.TextChannel = None):
+        """set or view the channel for error logging"""
+        if channel:
+            # Set the error channel
+            self.bot.error_channel_id = channel.id
+            await ctx.send(
+                embed=self.success_embed(
+                    description=f"error channel set to {channel.mention}"
+                )
+            )
+        else:
+            # Display current error channel
+            error_channel_id = getattr(self.bot, "error_channel_id", None)
+            if error_channel_id:
+                channel = self.bot.get_channel(error_channel_id)
+                if channel:
+                    await ctx.send(
+                        embed=self.embed(
+                            description=f"current error channel: {channel.mention}"
+                        )
+                    )
+                else:
+                    await ctx.send(
+                        embed=self.warning_embed(
+                            description=f"error channel is set to ID `{error_channel_id}` but I cannot access it"
+                        )
+                    )
+            else:
+                await ctx.send(
+                    embed=self.warning_embed(description="no error channel is set")
+                )
+
+
+async def setup(bot):
+    await bot.add_cog(ErrorHandler(bot))
