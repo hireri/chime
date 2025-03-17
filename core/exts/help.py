@@ -43,7 +43,7 @@ class MyHelpCommand(commands.HelpCommand):
                 title=(
                     f"help - {cog.qualified_name}" if cog else "uncategorized commands"
                 ),
-                color=MAIN_COLOR,
+                color=config.MAIN_COLOR,
             )
             for command in await self.filter_commands(cog_commands):
                 embed.add_field(
@@ -72,7 +72,7 @@ class MyHelpCommand(commands.HelpCommand):
 
         embed = discord.Embed(
             title=f"help - {cog.qualified_name}",
-            color=MAIN_COLOR,
+            color=config.MAIN_COLOR,
         )
         for command in await self.filter_commands(cog.get_commands()):
             embed.add_field(
@@ -89,7 +89,7 @@ class MyHelpCommand(commands.HelpCommand):
         embed = discord.Embed(
             title=f"help - {command.qualified_name}",
             description=self.get_command_description(command),
-            color=MAIN_COLOR,
+            color=config.MAIN_COLOR,
         )
         embed.add_field(
             name="usage",
@@ -105,7 +105,7 @@ class MyHelpCommand(commands.HelpCommand):
         embed = discord.Embed(
             title=f"help - {group.qualified_name}",
             description=self.get_command_description(group),
-            color=MAIN_COLOR,
+            color=config.MAIN_COLOR,
         )
         embed.add_field(
             name="usage",
@@ -154,7 +154,7 @@ class MyHelpCommand(commands.HelpCommand):
             description=self.get_command_description(command)
             or command.description
             or "no detailed help available.",
-            color=MAIN_COLOR,
+            color=config.MAIN_COLOR,
         )
         embed.add_field(
             name="usage",

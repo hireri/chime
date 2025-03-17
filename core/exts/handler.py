@@ -19,6 +19,7 @@ class ErrorHandler(BaseCog):
         error_type: str,
         error_msg: str,
         should_trace: bool = False,
+        exception: Exception = None,
     ) -> Optional[discord.Message]:
         """send a formatted error message to the context
 
@@ -27,6 +28,7 @@ class ErrorHandler(BaseCog):
             error_type: The type or title of the error
             error_msg: The error message to display
             should_trace: Whether to include traceback info
+            exception: The actual exception object (if available)
 
         Returns:
             The sent message, if any
@@ -34,10 +36,10 @@ class ErrorHandler(BaseCog):
         embed = self.error_embed(title=error_type.lower(), description=error_msg)
 
         # Add traceback info if needed
-        if should_trace:
-            # Get the traceback info
+        if should_trace and exception:
+            # Get the traceback info from the actual exception
             tb = traceback.format_exception(
-                type(error_msg), error_msg, error_msg.__traceback__
+                type(exception), exception, exception.__traceback__
             )
             tb_text = "".join(tb)
 
@@ -88,6 +90,7 @@ class ErrorHandler(BaseCog):
                 ctx,
                 "missing argument",
                 f"the `{param_name}` argument is required. check `{config.PREFIX}help {ctx.command}` for usage.",
+                exception=error,
             )
 
         elif isinstance(error, commands.BadArgument):
@@ -95,6 +98,7 @@ class ErrorHandler(BaseCog):
                 ctx,
                 "invalid argument",
                 f"an argument provided was invalid: {str(error)}",
+                exception=error,
             )
 
         elif isinstance(error, commands.MissingPermissions):
@@ -103,6 +107,7 @@ class ErrorHandler(BaseCog):
                 ctx,
                 "permission denied",
                 f"you need {perms} permission(s) to use this command.",
+                exception=error,
             )
 
         elif isinstance(error, commands.BotMissingPermissions):
@@ -111,18 +116,18 @@ class ErrorHandler(BaseCog):
                 ctx,
                 "missing permissions",
                 f"i need {perms} permission(s) to execute this command.",
+                exception=error,
             )
 
         elif isinstance(error, commands.NotOwner):
-            await self._send_error_message(
-                ctx, "owner only", "this command can only be used by the bot owner."
-            )
+            return
 
         elif isinstance(error, commands.CommandOnCooldown):
             await self._send_error_message(
                 ctx,
                 "cooldown",
                 f"this command is on cooldown. try again in {error.retry_after:.2f}s.",
+                exception=error,
             )
 
         elif isinstance(error, commands.MaxConcurrencyReached):
@@ -130,11 +135,15 @@ class ErrorHandler(BaseCog):
                 ctx,
                 "max concurrency",
                 f"this command is already being used by the maximum number of users. ({error.number} {error.per.name})",
+                exception=error,
             )
 
         elif isinstance(error, commands.DisabledCommand):
             await self._send_error_message(
-                ctx, "command disabled", "this command is currently disabled."
+                ctx,
+                "command disabled",
+                "this command is currently disabled.",
+                exception=error,
             )
 
         elif isinstance(error, commands.NoPrivateMessage):
@@ -142,6 +151,7 @@ class ErrorHandler(BaseCog):
                 ctx,
                 "server only",
                 "this command can only be used in servers, not private messages.",
+                exception=error,
             )
 
         elif isinstance(error, commands.PrivateMessageOnly):
@@ -149,11 +159,23 @@ class ErrorHandler(BaseCog):
                 ctx,
                 "dm only",
                 "this command can only be used in private messages, not servers.",
+                exception=error,
             )
 
         elif isinstance(error, commands.CheckFailure):
             await self._send_error_message(
-                ctx, "check failed", "you do not have permission to use this command."
+                ctx,
+                "check failed",
+                "you do not have permission to use this command.",
+                exception=error,
+            )
+
+        elif isinstance(error, commands.TooManyArguments):
+            await self._send_error_message(
+                ctx,
+                "too many arguments",
+                f"too many arguments provided for `{ctx.command}`. check `{config.PREFIX}help {ctx.command}` for usage.",
+                exception=error,
             )
 
         else:
@@ -171,6 +193,7 @@ class ErrorHandler(BaseCog):
                 "command error",
                 f"an unexpected error occurred while executing this command. please try again later.",
                 should_trace=is_owner,
+                exception=error,
             )
 
     @commands.Cog.listener()
@@ -201,6 +224,7 @@ class ErrorHandler(BaseCog):
                 interaction,
                 "permission denied",
                 f"you need {perms} permission(s) to use this command.",
+                exception=error,
             )
 
         elif isinstance(error, discord.app_commands.BotMissingPermissions):
@@ -209,6 +233,7 @@ class ErrorHandler(BaseCog):
                 interaction,
                 "missing permissions",
                 f"i need {perms} permission(s) to execute this command.",
+                exception=error,
             )
 
         elif isinstance(error, discord.app_commands.CommandOnCooldown):
@@ -216,6 +241,7 @@ class ErrorHandler(BaseCog):
                 interaction,
                 "cooldown",
                 f"this command is on cooldown. try again in {error.retry_after:.2f}s.",
+                exception=error,
             )
 
         elif isinstance(error, discord.app_commands.CheckFailure):
@@ -223,6 +249,7 @@ class ErrorHandler(BaseCog):
                 interaction,
                 "check failed",
                 "you do not have permission to use this command.",
+                exception=error,
             )
 
         else:
@@ -240,6 +267,7 @@ class ErrorHandler(BaseCog):
                 "command error",
                 f"an unexpected error occurred while executing this command. please try again later.",
                 should_trace=is_owner,
+                exception=error,
             )
 
     async def _log_to_channel(self, ctx, error):
@@ -352,6 +380,8 @@ class ErrorHandler(BaseCog):
             raise commands.PrivateMessageOnly("This command can only be used in DMs")
         elif error_type == "check_failure":
             raise commands.CheckFailure("Check failed")
+        elif error_type == "too_many_args":
+            raise commands.TooManyArguments("Too many arguments provided for testing")
         else:
             await ctx.send(
                 embed=self.embed(
@@ -360,7 +390,7 @@ class ErrorHandler(BaseCog):
                         "available error types:\n"
                         "`basic`, `command`, `missing_arg`, `bad_arg`, `missing_perm`, "
                         "`bot_missing_perm`, `not_owner`, `cooldown`, `max_concurrency`, "
-                        "`disabled`, `no_dm`, `dm_only`, `check_failure`"
+                        "`disabled`, `no_dm`, `dm_only`, `check_failure`, `too_many_args`"
                     ),
                 )
             )
