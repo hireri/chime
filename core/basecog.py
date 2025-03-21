@@ -33,7 +33,11 @@ class BaseCog(commands.Cog):
 
     # Utility methods for creating embeds
     def embed(
-        self, title: str = None, description: str = None, color: int = None
+        self,
+        title: str = None,
+        description: str = None,
+        color: int = None,
+        show_time=False,
     ) -> discord.Embed:
         """create an embed with the main color"""
         # Check if config has been modified
@@ -43,7 +47,7 @@ class BaseCog(commands.Cog):
             title=title,
             description=description,
             color=color or config.MAIN_COLOR,
-            timestamp=discord.utils.utcnow(),
+            timestamp=discord.utils.utcnow() if show_time else None,
         )
 
     def success_embed(
@@ -72,64 +76,6 @@ class BaseCog(commands.Cog):
             title=title,
             description=f"{config.WARN_ICON} {description}" if description else None,
             color=config.WARN_COLOR,
-        )
-
-    # Error handling
-    async def cog_command_error(self, ctx, error):
-        """handle errors for commands in this cog"""
-        # Unwrap the error to get the original cause
-        error = getattr(error, "original", error)
-
-        # Handle specific error types
-        if isinstance(error, commands.MissingPermissions):
-            await ctx.send(
-                embed=self.error_embed(
-                    title="permission denied",
-                    description=f"you need {', '.join(error.missing_permissions)} permission(s) to use this command.",
-                )
-            )
-            return
-
-        if isinstance(error, commands.BotMissingPermissions):
-            await ctx.send(
-                embed=self.error_embed(
-                    title="missing permissions",
-                    description=f"i need {', '.join(error.missing_permissions)} permission(s) to execute this command.",
-                )
-            )
-            return
-
-        if isinstance(error, commands.CommandOnCooldown):
-            await ctx.send(
-                embed=self.warning_embed(
-                    title="cooldown",
-                    description=f"this command is on cooldown. try again in {error.retry_after:.2f}s.",
-                )
-            )
-            return
-
-        if isinstance(error, commands.MissingRequiredArgument):
-            await ctx.send(
-                embed=self.error_embed(
-                    title="missing argument",
-                    description=f"the {error.param.name} argument is required.",
-                )
-            )
-            return
-
-        if isinstance(error, commands.BadArgument):
-            await ctx.send(
-                embed=self.error_embed(title="invalid argument", description=str(error))
-            )
-            return
-
-        # Log unhandled errors
-        self.logger.error(f"Unhandled error in {ctx.command}: {error}", exc_info=error)
-        await ctx.send(
-            embed=self.error_embed(
-                title="command error",
-                description=f"an unexpected error occurred: {str(error)}",
-            )
         )
 
     # Utility methods for UI components
@@ -211,7 +157,7 @@ class BaseCog(commands.Cog):
                 if interaction.user.id != ctx.author.id:
                     await interaction.response.send_message(
                         self.error_embed(
-                            "You cannot use these controls as you didn't invoke the command."
+                            "you cannot use these controls as you didn't invoke the command."
                         ),
                         ephemeral=True,
                     )
@@ -229,8 +175,8 @@ class BaseCog(commands.Cog):
                     # Create modal for page input
                     class PageInputModal(discord.ui.Modal, title="Jump to Page"):
                         page_number = discord.ui.TextInput(
-                            label=f"Enter page number (1-{len(self.pages)})",
-                            placeholder="Page number",
+                            label=f"enter page number (1-{len(self.pages)})",
+                            placeholder="page number",
                             min_length=1,
                             max_length=len(str(len(self.pages))),
                         )
@@ -247,7 +193,7 @@ class BaseCog(commands.Cog):
                                     for child in self.view.children:
                                         if child.custom_id == "page":
                                             child.label = (
-                                                f"Page {page}/{len(self.view.pages)}"
+                                                f"{page}/{len(self.view.pages)}"
                                             )
 
                                     await modal_interaction.response.edit_message(
@@ -256,12 +202,12 @@ class BaseCog(commands.Cog):
                                     )
                                 else:
                                     await modal_interaction.response.send_message(
-                                        f"Please enter a number between 1 and {len(self.view.pages)}.",
+                                        f"please enter a number between 1 and {len(self.view.pages)}.",
                                         ephemeral=True,
                                     )
                             except ValueError:
                                 await modal_interaction.response.send_message(
-                                    "Please enter a valid number.", ephemeral=True
+                                    "please enter a valid number.", ephemeral=True
                                 )
 
                     modal = PageInputModal()
@@ -272,7 +218,7 @@ class BaseCog(commands.Cog):
                 # Update the page button label
                 for child in self.children:
                     if child.custom_id == "page":
-                        child.label = f"Page {self.current_page + 1}/{len(self.pages)}"
+                        child.label = f"{self.current_page + 1}/{len(self.pages)}"
 
                 await interaction.response.edit_message(
                     embed=self.pages[self.current_page], view=self
@@ -464,7 +410,7 @@ class BaseCog(commands.Cog):
                 # Update the page button label
                 for child in view.children:
                     if isinstance(child, PageButton):
-                        child.label = f"Page {view.current_page + 1}/{len(pages)}"
+                        child.label = f"{view.current_page + 1}/{len(pages)}"
 
                 await interaction.response.edit_message(
                     embed=pages[view.current_page], view=view
@@ -477,9 +423,9 @@ class BaseCog(commands.Cog):
                 pages = view.category_pages[view.current_category]
 
                 # Create modal for page input
-                class PageInputModal(discord.ui.Modal, title="Jump to Page"):
+                class PageInputModal(discord.ui.Modal, title="jump to page"):
                     page_number = discord.ui.TextInput(
-                        label=f"Enter page number (1-{len(pages)})",
+                        label=f"enter page number (1-{len(pages)})",
                         placeholder="Page number",
                         min_length=1,
                         max_length=len(str(len(pages))),
@@ -495,12 +441,12 @@ class BaseCog(commands.Cog):
                                 )
                             else:
                                 await modal_interaction.response.send_message(
-                                    f"Please enter a number between 1 and {len(pages)}.",
+                                    f"please enter a number between 1 and {len(pages)}.",
                                     ephemeral=True,
                                 )
                         except ValueError:
                             await modal_interaction.response.send_message(
-                                "Please enter a valid number.", ephemeral=True
+                                "please enter a valid number.", ephemeral=True
                             )
 
                 await interaction.response.send_modal(PageInputModal())

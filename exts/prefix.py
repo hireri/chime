@@ -21,13 +21,10 @@ class PrefixCommands(BaseCog):
 
         Without subcommands, shows information about the current prefix
         """
-        # Default behavior when no subcommand is specified
         embed = self.embed(title="prefix information")
 
-        # Track current active prefix
         current_prefix = config.PREFIX
 
-        # Check for user prefix - highest priority
         user_prefix = await prefix_manager.get_user_prefix(ctx.author.id)
         if user_prefix:
             embed.add_field(
@@ -37,15 +34,10 @@ class PrefixCommands(BaseCog):
             )
             current_prefix = user_prefix
 
-        # Check for guild prefix - always show if set, even if user prefix overrides it
         if ctx.guild:
             guild_prefix = await prefix_manager.get_guild_prefix(ctx.guild.id)
             if guild_prefix:
-                status = (
-                    "(inactive - overridden by personal prefix)"
-                    if user_prefix
-                    else "(active)"
-                )
+                status = "(inactive)" if user_prefix else "(active)"
                 embed.add_field(
                     name="server prefix",
                     value=f"`{guild_prefix}` {status}",

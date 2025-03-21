@@ -14,24 +14,29 @@ class Utility(BaseCog):
     @commands.command(name="ping", brief="check the bot's latency")
     async def ping(self, ctx):
         """check the bot's latency"""
-        # Check if config has been modified
-        config.config.reload()
 
         start_time = datetime.datetime.utcnow()
 
-        # send initial response
-        message = await ctx.send("pinging...")
+        message = await ctx.send(
+            embed=self.embed(
+                description=f"{config.WAIT_ICON} pinging...", color=config.WARN_COLOR
+            )
+        )
 
-        # calculate latency
         end_time = datetime.datetime.utcnow()
         response_time = (end_time - start_time).total_seconds() * 1000
         heartbeat_latency = round(self.bot.latency * 1000)
 
-        # edit the message with the results
-        await message.edit(
-            content=f"bot latency: {heartbeat_latency}ms\n"
-            f"response time: {response_time:.2f}ms"
+        embed = self.embed(
+            description=f"{config.SUCCESS_ICON} response time: `{response_time:.2f}ms`, bot latency: `{heartbeat_latency}ms`",
+            color=config.SUCCESS_COLOR,
         )
+        await message.edit(embed=embed)
+
+    @commands.command(name="kys", brief="kill yourself")
+    async def kys(self, ctx, user: discord.Member = None):
+        user = user or ctx.author
+        await ctx.send(f"{user.mention} kys")
 
     @commands.command(name="info", brief="get information about the bot")
     async def info(self, ctx):
