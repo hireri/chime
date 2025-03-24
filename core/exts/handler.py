@@ -33,7 +33,7 @@ class ErrorHandler(BaseCog):
         Returns:
             The sent message, if any
         """
-        embed = self.error_embed(title=error_type.lower(), description=error_msg)
+        embed = self.error_embed(description=error_msg)
 
         # Add traceback info if needed
         if should_trace and exception:
@@ -50,9 +50,6 @@ class ErrorHandler(BaseCog):
             embed.add_field(
                 name="traceback", value=f"```py\n{tb_text}\n```", inline=False
             )
-
-        # Add timestamp
-        embed.timestamp = discord.utils.utcnow()
 
         # Send the error message
         if isinstance(ctx, commands.Context):
@@ -283,7 +280,6 @@ class ErrorHandler(BaseCog):
 
             # Create an embed for the error
             embed = discord.Embed(
-                title="Command Error Log",
                 color=config.ERROR_COLOR,
                 timestamp=discord.utils.utcnow(),
             )
