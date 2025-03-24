@@ -17,12 +17,10 @@ class Debug(BaseCog):
         """reload the bot configuration from the config file"""
         if config.reload():
             embed = self.success_embed(
-                title="configuration reloaded",
                 description="the configuration has been successfully reloaded.",
             )
         else:
             embed = self.warning_embed(
-                title="configuration unchanged",
                 description="the configuration file hasn't been modified since last reload.",
             )
 

@@ -36,6 +36,7 @@ class Utility(BaseCog):
     @commands.command(name="kys", brief="kill yourself")
     async def kys(self, ctx, user: discord.Member = None):
         user = user or ctx.author
+        await ctx.message.delete()
         await ctx.send(f"{user.mention} kys")
 
     @commands.command(name="info", brief="get information about the bot")
