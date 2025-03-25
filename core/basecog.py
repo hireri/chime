@@ -189,12 +189,9 @@ class BaseCog(commands.Cog):
                                 if 1 <= page <= len(self.pages):
                                     self.view.current_page = page - 1
 
-                                    # Update the page button label
                                     for child in self.view.children:
                                         if child.custom_id == "page":
-                                            child.label = (
-                                                f"{page}/{len(self.view.pages)}"
-                                            )
+                                            child.label = f"{self.view.children}/{len(self.view.pages)}"
 
                                     await modal_interaction.response.edit_message(
                                         embed=self.view.pages[self.view.current_page],
@@ -202,12 +199,12 @@ class BaseCog(commands.Cog):
                                     )
                                 else:
                                     await modal_interaction.response.send_message(
-                                        f"please enter a number between 1 and {len(self.view.pages)}.",
+                                        f"enter a number between 1 and {len(self.view.pages)}",
                                         ephemeral=True,
                                     )
                             except ValueError:
                                 await modal_interaction.response.send_message(
-                                    "please enter a valid number.", ephemeral=True
+                                    "enter a valid number", ephemeral=True
                                 )
 
                     modal = PageInputModal()
