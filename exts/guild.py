@@ -326,7 +326,9 @@ class Guild(BaseCog):
                 delete_after=10,
             )
 
-    @commands.command(name="lockdown", brief="Lockdown a channel")
+    @commands.command(
+        name="lockdown", brief="Lockdown all channels", aliases=["lockall", "unlockall"]
+    )
     @commands.has_permissions(manage_channels=True)
     async def lockdown(self, ctx):
         """Make all channels read-only"""

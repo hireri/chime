@@ -415,7 +415,7 @@ class Info(BaseCog):
         async with self.bot.session.get(dictionary_api.format(word)) as response:
             if response.status != 200:
                 await ctx.send(
-                    self.error_embed(
+                    embed=self.error_embed(
                         description=f"could not find definition for **{word}**"
                     )
                 )
@@ -426,7 +426,7 @@ class Info(BaseCog):
 
                 if not data:
                     await ctx.send(
-                        self.error_embed(
+                        embed=self.error_embed(
                             description=f"no definitions found for **{word}**"
                         )
                     )
