@@ -135,7 +135,9 @@ class Snipe(BaseCog):
         self.message_history.pop(ctx.channel.id, None)
         self.edit_history.pop(ctx.channel.id, None)
         self.reaction_history.pop(ctx.channel.id, None)
-        await ctx.send_embed("All snipe data cleared for this channel.")
+        await ctx.send(
+            embed=self.success_embed(description="cleared all sniped messages")
+        )
 
     @commands.command(
         name="reactionsnipe", description="Snipe the latest reaction that was removed"
@@ -144,7 +146,9 @@ class Snipe(BaseCog):
         history = self.reaction_history.get(ctx.channel.id, [])
         if not history:
             return await ctx.send(
-                embed=self.warning_embed("no recent reactions in this channel")
+                embed=self.warning_embed(
+                    description="no recent reactions in this channel"
+                )
             )
 
         message, reaction, user, timestamp = next(
@@ -173,14 +177,18 @@ class Snipe(BaseCog):
                     await ctx.fetch_message(ctx.message.reference.message_id)
                 ).jump_url
             elif not message_link:
-                raise Exception
+                return await ctx.send(
+                    embed=self.error_embed(description="no message provided")
+                )
 
             channel_id, message_id = map(int, message_link.split("/")[-2:])
             channel = self.bot.get_channel(channel_id)
             message = await channel.fetch_message(message_id)
 
         except Exception:
-            return await ctx.send(embed=self.error_embed("invalid message link"))
+            return await ctx.send(
+                embed=self.error_embed(description="invalid message link")
+            )
 
         reactions = [
             (reaction, user, t)
@@ -190,7 +198,9 @@ class Snipe(BaseCog):
 
         if not reactions:
             return await ctx.send(
-                embed=self.warning_embed("no recent reaction history for this message")
+                embed=self.warning_embed(
+                    description="no recent reaction history for this message"
+                )
             )
 
         grouped_reactions = {}
@@ -217,7 +227,7 @@ class Snipe(BaseCog):
         history = self.edit_history.get(ctx.channel.id, [])
         if not history:
             return await ctx.send(
-                embed=self.warning_embed("no recent edits in this channel")
+                embed=self.warning_embed(description="no recent edits in this channel")
             )
 
         valid_edits = [
@@ -259,7 +269,9 @@ class Snipe(BaseCog):
         history = self.message_history.get(ctx.channel.id, [])
         if not history:
             return await ctx.send(
-                embed=self.warning_embed("no recent deletions in this channel")
+                embed=self.warning_embed(
+                    description="no recent deletions in this channel"
+                )
             )
 
         valid_deletions = [

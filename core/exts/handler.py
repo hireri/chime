@@ -16,7 +16,6 @@ class ErrorHandler(BaseCog):
     async def _send_error_message(
         self,
         ctx: Union[commands.Context, discord.Interaction],
-        error_type: str,
         error_msg: str,
         should_trace: bool = False,
         exception: Exception = None,
@@ -25,7 +24,6 @@ class ErrorHandler(BaseCog):
 
         Args:
             ctx: The command context or interaction
-            error_type: The type or title of the error
             error_msg: The error message to display
             should_trace: Whether to include traceback info
             exception: The actual exception object (if available)
@@ -85,7 +83,6 @@ class ErrorHandler(BaseCog):
             param_name = error.param.name
             await self._send_error_message(
                 ctx,
-                "missing argument",
                 f"the `{param_name}` argument is required. check `{config.PREFIX}help {ctx.command}` for usage.",
                 exception=error,
             )
@@ -93,8 +90,7 @@ class ErrorHandler(BaseCog):
         elif isinstance(error, commands.BadArgument):
             await self._send_error_message(
                 ctx,
-                "invalid argument",
-                f"an argument provided was invalid: {str(error)}",
+                f"invalid argument: {str(error)}",
                 exception=error,
             )
 
@@ -102,7 +98,6 @@ class ErrorHandler(BaseCog):
             perms = ", ".join(f"`{p}`" for p in error.missing_permissions)
             await self._send_error_message(
                 ctx,
-                "permission denied",
                 f"you need {perms} permission(s) to use this command.",
                 exception=error,
             )
@@ -111,7 +106,6 @@ class ErrorHandler(BaseCog):
             perms = ", ".join(f"`{p}`" for p in error.missing_permissions)
             await self._send_error_message(
                 ctx,
-                "missing permissions",
                 f"i need {perms} permission(s) to execute this command.",
                 exception=error,
             )
@@ -122,7 +116,6 @@ class ErrorHandler(BaseCog):
         elif isinstance(error, commands.CommandOnCooldown):
             await self._send_error_message(
                 ctx,
-                "cooldown",
                 f"this command is on cooldown. try again in {error.retry_after:.2f}s.",
                 exception=error,
             )
@@ -130,7 +123,6 @@ class ErrorHandler(BaseCog):
         elif isinstance(error, commands.MaxConcurrencyReached):
             await self._send_error_message(
                 ctx,
-                "max concurrency",
                 f"this command is already being used by the maximum number of users. ({error.number} {error.per.name})",
                 exception=error,
             )
@@ -138,7 +130,6 @@ class ErrorHandler(BaseCog):
         elif isinstance(error, commands.DisabledCommand):
             await self._send_error_message(
                 ctx,
-                "command disabled",
                 "this command is currently disabled.",
                 exception=error,
             )
@@ -146,7 +137,6 @@ class ErrorHandler(BaseCog):
         elif isinstance(error, commands.NoPrivateMessage):
             await self._send_error_message(
                 ctx,
-                "server only",
                 "this command can only be used in servers, not private messages.",
                 exception=error,
             )
@@ -154,7 +144,6 @@ class ErrorHandler(BaseCog):
         elif isinstance(error, commands.PrivateMessageOnly):
             await self._send_error_message(
                 ctx,
-                "dm only",
                 "this command can only be used in private messages, not servers.",
                 exception=error,
             )
@@ -162,7 +151,6 @@ class ErrorHandler(BaseCog):
         elif isinstance(error, commands.CheckFailure):
             await self._send_error_message(
                 ctx,
-                "check failed",
                 "you do not have permission to use this command.",
                 exception=error,
             )
@@ -170,7 +158,6 @@ class ErrorHandler(BaseCog):
         elif isinstance(error, commands.TooManyArguments):
             await self._send_error_message(
                 ctx,
-                "too many arguments",
                 f"too many arguments provided for `{ctx.command}`. check `{config.PREFIX}help {ctx.command}` for usage.",
                 exception=error,
             )
@@ -187,7 +174,6 @@ class ErrorHandler(BaseCog):
 
             await self._send_error_message(
                 ctx,
-                "command error",
                 f"an unexpected error occurred while executing this command. please try again later.",
                 should_trace=is_owner,
                 exception=error,
@@ -219,7 +205,6 @@ class ErrorHandler(BaseCog):
             perms = ", ".join(f"`{p}`" for p in error.missing_permissions)
             await self._send_error_message(
                 interaction,
-                "permission denied",
                 f"you need {perms} permission(s) to use this command.",
                 exception=error,
             )
@@ -228,7 +213,6 @@ class ErrorHandler(BaseCog):
             perms = ", ".join(f"`{p}`" for p in error.missing_permissions)
             await self._send_error_message(
                 interaction,
-                "missing permissions",
                 f"i need {perms} permission(s) to execute this command.",
                 exception=error,
             )
@@ -236,7 +220,6 @@ class ErrorHandler(BaseCog):
         elif isinstance(error, discord.app_commands.CommandOnCooldown):
             await self._send_error_message(
                 interaction,
-                "cooldown",
                 f"this command is on cooldown. try again in {error.retry_after:.2f}s.",
                 exception=error,
             )
@@ -244,7 +227,6 @@ class ErrorHandler(BaseCog):
         elif isinstance(error, discord.app_commands.CheckFailure):
             await self._send_error_message(
                 interaction,
-                "check failed",
                 "you do not have permission to use this command.",
                 exception=error,
             )
@@ -261,7 +243,6 @@ class ErrorHandler(BaseCog):
 
             await self._send_error_message(
                 interaction,
-                "command error",
                 f"an unexpected error occurred while executing this command. please try again later.",
                 should_trace=is_owner,
                 exception=error,

@@ -79,7 +79,9 @@ class BaseCog(commands.Cog):
         )
 
     # Utility methods for UI components
-    async def paginate(self, ctx, pages: List[discord.Embed], timeout: int = 60):
+    async def paginate(
+        self, ctx, pages: List[discord.Embed], timeout: int = 60, compact=False
+    ):
         """send paginated embeds with navigation buttons"""
         if not pages:
             return await ctx.send(
@@ -97,14 +99,15 @@ class BaseCog(commands.Cog):
                 self.current_page = 0
 
                 # First page button
-                self.add_item(
-                    discord.ui.Button(
-                        emoji=config.FIRST_ICON,
-                        style=discord.ButtonStyle.gray,
-                        custom_id="first",
-                        row=0,
+                if not compact:
+                    self.add_item(
+                        discord.ui.Button(
+                            emoji=config.FIRST_ICON,
+                            style=discord.ButtonStyle.gray,
+                            custom_id="first",
+                            row=0,
+                        )
                     )
-                )
 
                 # Previous page button
                 self.add_item(
@@ -137,15 +140,16 @@ class BaseCog(commands.Cog):
                     )
                 )
 
-                # Last page button
-                self.add_item(
-                    discord.ui.Button(
-                        emoji=config.LAST_ICON,
-                        style=discord.ButtonStyle.gray,
-                        custom_id="last",
-                        row=0,
+                if not compact:
+                    # Last page button
+                    self.add_item(
+                        discord.ui.Button(
+                            emoji=config.LAST_ICON,
+                            style=discord.ButtonStyle.gray,
+                            custom_id="last",
+                            row=0,
+                        )
                     )
-                )
 
                 # Set callbacks for all buttons
                 for child in self.children:
@@ -157,7 +161,7 @@ class BaseCog(commands.Cog):
                 if interaction.user.id != ctx.author.id:
                     await interaction.response.send_message(
                         self.error_embed(
-                            "you cannot use these controls as you didn't invoke the command."
+                            "you cannot use these controls as you didn't invoke the command"
                         ),
                         ephemeral=True,
                     )

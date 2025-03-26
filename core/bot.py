@@ -24,6 +24,7 @@ class Core(commands.Bot):
             command_prefix=get_prefix_callable(),
             intents=intents,
             help_command=None,
+            allowed_mentions=discord.AllowedMentions(everyone=False, roles=False),
         )
 
         # Bot variables
@@ -88,22 +89,22 @@ class Core(commands.Bot):
         # Track the guild in database
         await db.update_guild(guild.id, guild.name)
 
-    async def on_message(self, message):
+    async def on_command_completion(self, ctx):
         """Process commands and track user activity"""
         # Don't respond to bots
-        if message.author.bot:
+        if ctx.author.bot:
             return
 
-        # Update user data in the background
-        if not message.author.bot:
-            self.loop.create_task(
-                db.update_user(
-                    message.author.id, message.author.name, message.author.discriminator
-                )
-            )
+        self.loop.create_task(
+            db.update_user(ctx.author.id, ctx.author.name, ctx.author.discriminator)
+        )
 
-        # Process commands
-        await self.process_commands(message)
+    async def fetch_image(self, url):
+        """Fetch an image from a URL"""
+        async with self.session.get(url) as response:
+            if response.status != 200:
+                return None
+            return await response.read()
 
     async def close(self):
         """Clean up resources when the bot is shutting down"""
