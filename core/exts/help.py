@@ -142,7 +142,6 @@ class MyHelpCommand(commands.HelpCommand):
         await self.get_destination().send(embed=embed, view=view)
 
     async def create_subcommand_embed(self, command):
-        # Check if config has been modified
         config.config.reload()
 
         embed = discord.Embed(
@@ -163,7 +162,6 @@ class MyHelpCommand(commands.HelpCommand):
         return f"no command called '{string}' found."
 
     async def send_error_message(self, error):
-        # Check if config has been modified
         config.config.reload()
 
         embed = discord.Embed(

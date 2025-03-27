@@ -24,13 +24,11 @@ class Database:
         """
         if self._pool is not None:
             if bot and not hasattr(bot, "db_pool"):
-                bot.db_pool = self._pool  # Attach to bot if requested
+                bot.db_pool = self._pool
             return
 
-        # Load environment variables if not already loaded
         load_dotenv()
 
-        # Get database credentials from environment
         db_host = os.getenv("DB_HOST", "localhost")
         db_name = os.getenv("DB_NAME", "discord_bot")
         db_user = os.getenv("DB_USER", "postgres")
@@ -38,7 +36,6 @@ class Database:
         db_port = os.getenv("DB_PORT", "5432")
 
         try:
-            # Create connection pool
             self._pool = await asyncpg.create_pool(
                 host=db_host,
                 database=db_name,
@@ -50,12 +47,10 @@ class Database:
                 command_timeout=60,
             )
 
-            # Attach pool to bot if bot is provided
             if bot:
                 bot.db_pool = self._pool
                 logger.info("Database pool attached to bot.db_pool")
 
-            # Initialize database tables
             await self._initialize_tables()
             self.ready = True
             logger.info("Database connection established and tables initialized")
@@ -66,7 +61,6 @@ class Database:
     async def _initialize_tables(self):
         """Initialize necessary database tables if they don't exist"""
         async with self._pool.acquire() as conn:
-            # Create main tables
             await conn.execute(
                 """
                 CREATE TABLE IF NOT EXISTS guilds (
@@ -90,7 +84,6 @@ class Database:
             """
             )
 
-            # Create prefixes table
             await conn.execute(
                 """
                 CREATE TABLE IF NOT EXISTS prefixes (
@@ -104,7 +97,6 @@ class Database:
             """
             )
 
-            # Create index for faster prefix lookups
             await conn.execute(
                 """
                 CREATE INDEX IF NOT EXISTS idx_prefixes_lookup 
@@ -187,8 +179,6 @@ class Database:
         """
         return self._pool
 
-    # ===== Guild Methods =====
-
     async def get_guild(self, guild_id: int) -> Optional[Dict[str, Any]]:
         """Get a guild's information by ID"""
         query = "SELECT * FROM guilds WHERE id = $1"
@@ -204,8 +194,6 @@ class Database:
             SET name = $2, last_active = NOW()
         """
         await self.execute(query, guild_id, name)
-
-    # ===== User Methods =====
 
     async def get_user(self, user_id: int) -> Optional[Dict[str, Any]]:
         """Get a user's information by ID"""
@@ -224,8 +212,6 @@ class Database:
             SET username = $2, discriminator = $3, last_active = NOW()
         """
         await self.execute(query, user_id, username, discriminator)
-
-    # ===== Prefix Methods =====
 
     async def get_prefix(self, entity_type: str, entity_id: int) -> Optional[str]:
         """Get the custom prefix for a guild or user"""
@@ -256,5 +242,4 @@ class Database:
         return result is not None
 
 
-# Create a global instance of the database
 db = Database()

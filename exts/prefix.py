@@ -46,7 +46,6 @@ class PrefixCommands(BaseCog):
                 if not user_prefix:
                     current_prefix = guild_prefix
 
-        # Add default prefix info - only if active
         if not user_prefix and not (
             ctx.guild and await prefix_manager.get_guild_prefix(ctx.guild.id)
         ):
@@ -54,7 +53,6 @@ class PrefixCommands(BaseCog):
                 name="default prefix", value=f"`{config.PREFIX}` (active)", inline=True
             )
 
-        # Add usage examples
         examples = [
             f"`{current_prefix}prefix set <p>` - Set server prefix to <p>",
             f"`{current_prefix}prefix self <p>` - Set your personal prefix to <p>",
@@ -65,7 +63,6 @@ class PrefixCommands(BaseCog):
 
         embed.add_field(name="examples", value="\n".join(examples), inline=False)
 
-        # Add note about mentions
         embed.set_footer(
             text="you can always @me as a prefix, regardless of custom settings."
         )
@@ -91,10 +88,8 @@ class PrefixCommands(BaseCog):
                 )
             )
 
-        # Update guild in database if needed
         await db.update_guild(ctx.guild.id, ctx.guild.name)
 
-        # Set the new prefix
         await prefix_manager.set_guild_prefix(ctx.guild.id, new_prefix)
 
         await ctx.reply(
@@ -107,7 +102,6 @@ class PrefixCommands(BaseCog):
 
         Shows default, server, and personal prefixes
         """
-        # Use the same logic as the base prefix command
         await self.prefix(ctx)
 
     @prefix.command(name="self", brief="Set your personal prefix")
@@ -118,7 +112,6 @@ class PrefixCommands(BaseCog):
             new_prefix: The new prefix to use, or "reset" to remove
                        If not provided, shows your current prefix
         """
-        # If no prefix is provided, show current prefix
         if new_prefix is None:
             user_prefix = await prefix_manager.get_user_prefix(ctx.author.id)
 
@@ -134,7 +127,6 @@ class PrefixCommands(BaseCog):
                 )
             return
 
-        # If prefix is 'reset', remove personal prefix
         if new_prefix.lower() == "reset":
             result = await prefix_manager.remove_user_prefix(ctx.author.id)
 
@@ -152,7 +144,6 @@ class PrefixCommands(BaseCog):
                 )
             return
 
-        # Check prefix length
         if len(new_prefix) > 10:
             return await ctx.reply(
                 embed=self.error_embed(
@@ -160,10 +151,8 @@ class PrefixCommands(BaseCog):
                 )
             )
 
-        # Update user in database if needed
         await db.update_user(ctx.author.id, ctx.author.name, ctx.author.discriminator)
 
-        # Set the new prefix
         await prefix_manager.set_user_prefix(ctx.author.id, new_prefix)
 
         await ctx.reply(

@@ -20,15 +20,12 @@ class PrefixManager:
         """
         self.default_prefix = default_prefix or config.PREFIX
 
-        # Cache to reduce database calls
         self._guild_cache: Dict[int, str] = {}
         self._user_cache: Dict[int, str] = {}
 
-        # Metrics for monitoring
         self.cache_hits = 0
         self.cache_misses = 0
 
-        # Set maximum cache size
         self.max_cache_size = 1000
 
     async def get_prefix(
@@ -51,23 +48,19 @@ class PrefixManager:
         """
         prefixes = []
 
-        # Always accept mentions as prefix
         prefixes.extend([f"<@{bot.user.id}> ", f"<@!{bot.user.id}> "])
 
-        # Check for user-specific prefix (highest priority)
         user_prefix = await self.get_user_prefix(message.author.id)
         if user_prefix:
             prefixes.append(user_prefix)
-            return prefixes  # User prefix overrides all others
+            return prefixes
 
-        # If in a guild, check for guild-specific prefix
         if message.guild:
             guild_prefix = await self.get_guild_prefix(message.guild.id)
             if guild_prefix:
                 prefixes.append(guild_prefix)
-                return prefixes  # Guild prefix overrides default
+                return prefixes
 
-        # Only use default prefix if no custom prefixes are set
         prefixes.append(self.default_prefix)
 
         return prefixes
@@ -81,16 +74,13 @@ class PrefixManager:
         Returns:
             Optional[str]: The custom prefix, or None if not set
         """
-        # Check cache first
         if guild_id in self._guild_cache:
             self.cache_hits += 1
             return self._guild_cache[guild_id]
 
-        # Not in cache, query the database
         self.cache_misses += 1
         prefix = await db.get_prefix("guild", guild_id)
 
-        # Update cache
         if prefix:
             self._add_to_cache(self._guild_cache, guild_id, prefix)
 
@@ -105,16 +95,13 @@ class PrefixManager:
         Returns:
             Optional[str]: The custom prefix, or None if not set
         """
-        # Check cache first
         if user_id in self._user_cache:
             self.cache_hits += 1
             return self._user_cache[user_id]
 
-        # Not in cache, query the database
         self.cache_misses += 1
         prefix = await db.get_prefix("user", user_id)
 
-        # Update cache
         if prefix:
             self._add_to_cache(self._user_cache, user_id, prefix)
 
@@ -128,12 +115,10 @@ class PrefixManager:
             key (int): The key to add
             value (str): The value to add
         """
-        # If cache is full, remove oldest item (first added)
         if len(cache) >= self.max_cache_size:
             oldest_key = next(iter(cache))
             del cache[oldest_key]
 
-        # Add new item
         cache[key] = value
 
     async def set_guild_prefix(self, guild_id: int, prefix: str) -> None:
@@ -145,7 +130,6 @@ class PrefixManager:
         """
         await db.set_prefix("guild", guild_id, prefix)
 
-        # Update cache
         self._guild_cache[guild_id] = prefix
 
     async def set_user_prefix(self, user_id: int, prefix: str) -> None:
@@ -157,7 +141,6 @@ class PrefixManager:
         """
         await db.set_prefix("user", user_id, prefix)
 
-        # Update cache
         self._user_cache[user_id] = prefix
 
     async def remove_guild_prefix(self, guild_id: int) -> bool:
@@ -171,7 +154,6 @@ class PrefixManager:
         """
         result = await db.remove_prefix("guild", guild_id)
 
-        # Update cache
         if result and guild_id in self._guild_cache:
             del self._guild_cache[guild_id]
 
@@ -188,7 +170,6 @@ class PrefixManager:
         """
         result = await db.remove_prefix("user", user_id)
 
-        # Update cache
         if result and user_id in self._user_cache:
             del self._user_cache[user_id]
 
@@ -215,11 +196,9 @@ class PrefixManager:
         }
 
 
-# Create a global instance of the prefix manager
 prefix_manager = PrefixManager()
 
 
-# Function to get as callable for bot initialization
 def get_prefix_callable() -> Callable:
     """Get the prefix manager's get_prefix method as a callable
 

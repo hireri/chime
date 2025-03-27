@@ -30,18 +30,14 @@ class Debug(BaseCog):
     @commands.is_owner()
     async def debug_config(self, ctx):
         """owner-only command to display all configuration variables with examples"""
-        # Force reload config to ensure latest values
         config.reload()
 
-        # Create category pages dictionary
         category_pages = {}
 
-        # ===== Overview Page =====
         overview_pages = []
         overview_embed = self.embed(title="config debug: overview")
         overview_embed.set_thumbnail(url=None)
 
-        # Add quick stats
         overview_embed.add_field(
             name="quick stats",
             value=(
@@ -57,46 +53,38 @@ class Debug(BaseCog):
         overview_pages.append(overview_embed)
         category_pages["overview"] = overview_pages
 
-        # ===== Colors Pages =====
         colors_pages = []
 
-        # First page: Overview of all colors
         color_overview = self.embed(title="config debug: colors overview")
         color_overview.set_thumbnail(url=None)
 
-        # Display each color with both hex value and example
         for color_name, color_value in config.COLORS.items():
-            # Generate color swatch
             hex_color = f"{color_value:06x}"
             color_url = f"https://singlecolorimage.com/get/{hex_color}/32x32"
 
-            # Create a field showing the color info
             color_overview.add_field(
                 name=f"{color_name}",
                 value=(
                     f"Hex: `{hex(color_value)}`\n"
                     f"Int: `{color_value}`\n"
-                    f"[■]({color_url})"  # Clickable color swatch
+                    f"[■]({color_url})"
                 ),
                 inline=True,
             )
 
         colors_pages.append(color_overview)
 
-        # Individual color pages
         for color_name, color_value in config.COLORS.items():
             color_embed = discord.Embed(
                 title=f"color: {color_name}",
                 description=f"this is how {color_name} looks as an embed color",
                 color=color_value,
             )
-            # Set color thumbnail
             hex_color = f"{color_value:06x}"
             color_embed.set_thumbnail(
                 url=f"https://singlecolorimage.com/get/{hex_color}/32x32"
             )
 
-            # Add color info
             color_embed.add_field(
                 name="color details",
                 value=(
@@ -108,7 +96,6 @@ class Debug(BaseCog):
                 inline=False,
             )
 
-            # Add usage examples
             color_embed.add_field(
                 name="usage example",
                 value=(
@@ -126,14 +113,11 @@ class Debug(BaseCog):
 
         category_pages["colors"] = colors_pages
 
-        # ===== Icons Pages =====
         icons_pages = []
 
-        # Icons overview
         icons_embed = self.embed(title="config debug: icons")
         icons_embed.set_thumbnail(url=None)
 
-        # Display each icon with example
         for icon_name, icon_value in config.ICONS.items():
             icons_embed.add_field(
                 name=f"{icon_name}",
@@ -148,14 +132,11 @@ class Debug(BaseCog):
         icons_pages.append(icons_embed)
         category_pages["icons"] = icons_pages
 
-        # ===== System Info Pages =====
         system_pages = []
 
-        # System overview
         system_embed = self.embed(title="config debug: system info")
         system_embed.set_thumbnail(url=None)
 
-        # Add Python and discord.py info
         system_embed.add_field(
             name="versions",
             value=(
@@ -166,7 +147,6 @@ class Debug(BaseCog):
             inline=True,
         )
 
-        # Add system resource info
         uptime = datetime.datetime.utcnow() - self.bot.start_time
         hours, remainder = divmod(int(uptime.total_seconds()), 3600)
         minutes, seconds = divmod(remainder, 60)
@@ -188,11 +168,9 @@ class Debug(BaseCog):
 
         system_pages.append(system_embed)
 
-        # Python details page
         python_embed = self.embed(title="config debug: python details")
         python_embed.set_thumbnail(url=None)
 
-        # Add Python interpreter info
         python_embed.add_field(
             name="python environment",
             value=(
@@ -205,7 +183,6 @@ class Debug(BaseCog):
             inline=False,
         )
 
-        # Add sys.path info
         paths = "\n".join([f"`{p}`" for p in sys.path[:5]])
         if len(sys.path) > 5:
             paths += f"\n... and {len(sys.path) - 5} more paths"
@@ -214,11 +191,9 @@ class Debug(BaseCog):
 
         system_pages.append(python_embed)
 
-        # Detailed system info page
         sys_details_embed = self.embed(title="config debug: detailed system info")
         sys_details_embed.set_thumbnail(url=None)
 
-        # Add detailed system info
         virtual_memory = psutil.virtual_memory()
         disk_usage = psutil.disk_usage("/")
 
@@ -244,12 +219,10 @@ class Debug(BaseCog):
             inline=True,
         )
 
-        # CPU info
         cpu_info = f"Cores: `{psutil.cpu_count(logical=False)}`\n"
         cpu_info += f"Logical CPUs: `{psutil.cpu_count()}`\n"
         cpu_info += f"Current usage: `{psutil.cpu_percent()}%`\n"
 
-        # Try to get CPU frequency
         try:
             cpu_freq = psutil.cpu_freq()
             if cpu_freq:
@@ -262,14 +235,11 @@ class Debug(BaseCog):
         system_pages.append(sys_details_embed)
         category_pages["system"] = system_pages
 
-        # ===== Bot Info Pages =====
         bot_pages = []
 
-        # Bot overview
         bot_embed = self.embed(title="config debug: bot info")
         bot_embed.set_thumbnail(url=None)
 
-        # Add bot details
         bot_embed.add_field(
             name="identity",
             value=(
@@ -282,7 +252,6 @@ class Debug(BaseCog):
             inline=True,
         )
 
-        # Add guild stats
         guild_count = len(self.bot.guilds)
         member_count = sum(g.member_count for g in self.bot.guilds)
         user_count = len(self.bot.users)
@@ -301,11 +270,9 @@ class Debug(BaseCog):
 
         bot_pages.append(bot_embed)
 
-        # Commands and cogs page
         commands_embed = self.embed(title="config debug: commands and cogs")
         commands_embed.set_thumbnail(url=None)
 
-        # List cogs and their command counts
         cogs_text = ""
         for cog_name, cog in self.bot.cogs.items():
             cog_commands = len(cog.get_commands())
@@ -317,7 +284,6 @@ class Debug(BaseCog):
             inline=True,
         )
 
-        # Add command count by type
         total_commands = len(list(self.bot.commands))
         hidden_commands = len([c for c in self.bot.commands if c.hidden])
         owner_commands = len(
@@ -340,11 +306,9 @@ class Debug(BaseCog):
 
         bot_pages.append(commands_embed)
 
-        # Performance page
         perf_embed = self.embed(title="config debug: performance")
         perf_embed.set_thumbnail(url=None)
 
-        # Add latency info
         perf_embed.add_field(
             name="connection",
             value=(
@@ -354,7 +318,6 @@ class Debug(BaseCog):
             inline=True,
         )
 
-        # Add uptime info
         uptime = datetime.datetime.utcnow() - self.bot.start_time
         hours, remainder = divmod(int(uptime.total_seconds()), 3600)
         minutes, seconds = divmod(remainder, 60)
@@ -372,14 +335,11 @@ class Debug(BaseCog):
         bot_pages.append(perf_embed)
         category_pages["bot"] = bot_pages
 
-        # ===== Config Pages =====
         config_pages = []
 
-        # Config overview
         config_embed = self.embed(title="config debug: configuration")
         config_embed.set_thumbnail(url=None)
 
-        # Add config path info
         last_modified_timestamp = int(config._last_modified)
         current_timestamp = int(datetime.datetime.utcnow().timestamp())
 
@@ -394,7 +354,6 @@ class Debug(BaseCog):
             inline=True,
         )
 
-        # Add prefix info
         config_embed.add_field(
             name="prefix",
             value=(
@@ -405,15 +364,12 @@ class Debug(BaseCog):
 
         config_pages.append(config_embed)
 
-        # Config file content
         content_embed = self.embed(title="config debug: file content")
         content_embed.set_thumbnail(url=None)
 
-        # Add raw config content
         with open(config.config_path, "r") as f:
             config_content = f.read()
 
-        # Split content into pages if needed
         content_chunks = []
         if len(config_content) > 1000:
             lines = config_content.split("\n")
@@ -431,7 +387,6 @@ class Debug(BaseCog):
         else:
             content_chunks = [config_content]
 
-        # Create a page for each chunk
         for i, chunk in enumerate(content_chunks):
             if i == 0:
                 content_embed.description = f"```ini\n{chunk}\n```"
@@ -446,7 +401,6 @@ class Debug(BaseCog):
 
         category_pages["config"] = config_pages
 
-        # Send combined menu
         await self.create_combined_menu(
             ctx, category_pages, placeholder="select a category..."
         )

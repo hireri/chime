@@ -253,29 +253,23 @@ class Info(BaseCog):
     @commands.has_permissions(manage_emojis=True)
     async def emoji_add(self, ctx, emoji_source: str = None, name: str = None):
         await ctx.message.add_reaction(config.THINK_ICON)
-        # Case 1: Image attached with potential name in first argument
         if ctx.message.attachments:
             image = ctx.message.attachments[0]
             emoji_img = await image.read()
 
-            # If emoji_source is provided, use it as name
             if emoji_source and not self.is_image_or_emoji(emoji_source):
                 emoji_name = emoji_source
             else:
                 emoji_name = name or image.filename.split(".")[0]
 
-        # Case 2: No attachment, check emoji_source
         elif emoji_source:
-            # Check if input is an existing custom emoji
             if emoji_source.startswith("<"):
                 emoji = discord.PartialEmoji.from_str(emoji_source)
                 async with ctx.bot.session.get(emoji.url) as resp:
                     emoji_img = await resp.read()
                 emoji_name = name or emoji.name
 
-            # Assume it's a URL
             else:
-                # Validate URL
                 parsed_url = urlparse(emoji_source)
                 if not all([parsed_url.scheme, parsed_url.netloc]):
                     await ctx.reply(
@@ -287,7 +281,6 @@ class Info(BaseCog):
                         config.THINK_ICON, self.bot.user
                     )
 
-                # Download image from URL
                 async with ctx.bot.session.get(emoji_source) as resp:
                     if resp.status != 200:
                         await ctx.reply(
@@ -300,12 +293,10 @@ class Info(BaseCog):
                         )
                     emoji_img = await resp.read()
 
-                # Determine name
                 emoji_name = (
                     name or urlparse(emoji_source).path.split("/")[-1].split(".")[0]
                 )
 
-        # No attachment and no emoji_source
         else:
             await ctx.reply(
                 embed=self.error_embed(
@@ -314,10 +305,8 @@ class Info(BaseCog):
             )
             return await ctx.message.remove_reaction(config.THINK_ICON, self.bot.user)
 
-        # Sanitize emoji name (remove non-alphanumeric characters)
         emoji_name = "".join(c for c in emoji_name if c.isalnum())
 
-        # Add emoji to server
         try:
             emoji = await ctx.guild.create_custom_emoji(
                 name=emoji_name, image=emoji_img
@@ -347,11 +336,9 @@ class Info(BaseCog):
         """
         Check if the input is a URL or an emoji
         """
-        # Check for custom emoji
         if text.startswith("<"):
             return True
 
-        # Check for URL
         try:
             parsed_url = urlparse(text)
             return all([parsed_url.scheme, parsed_url.netloc])
@@ -532,12 +519,10 @@ class Info(BaseCog):
         Returns:
         - Phonetic text or empty string
         """
-        # First try to find text phonetic
         for entry in phonetics:
             if entry.get("text"):
                 return entry["text"]
 
-        # If no text, return empty string
         return ""
 
     @commands.command(
