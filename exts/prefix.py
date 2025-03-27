@@ -70,7 +70,7 @@ class PrefixCommands(BaseCog):
             text="you can always @me as a prefix, regardless of custom settings."
         )
 
-        await ctx.send(embed=embed)
+        await ctx.reply(embed=embed)
 
     @prefix.command(name="set", brief="Set server prefix")
     @commands.has_permissions(manage_guild=True)
@@ -85,7 +85,7 @@ class PrefixCommands(BaseCog):
             manage_guild permission
         """
         if len(new_prefix) > 10:
-            return await ctx.send(
+            return await ctx.reply(
                 embed=self.error_embed(
                     description="prefix must be 10 characters or less"
                 )
@@ -97,7 +97,7 @@ class PrefixCommands(BaseCog):
         # Set the new prefix
         await prefix_manager.set_guild_prefix(ctx.guild.id, new_prefix)
 
-        await ctx.send(
+        await ctx.reply(
             embed=self.success_embed(description=f"server prefix set to `{new_prefix}`")
         )
 
@@ -123,13 +123,13 @@ class PrefixCommands(BaseCog):
             user_prefix = await prefix_manager.get_user_prefix(ctx.author.id)
 
             if user_prefix:
-                await ctx.send(
+                await ctx.reply(
                     embed=self.embed(
                         description=f"your personal prefix is `{user_prefix}`"
                     )
                 )
             else:
-                await ctx.send(
+                await ctx.reply(
                     embed=self.embed(description="you don't have a personal prefix set")
                 )
             return
@@ -139,13 +139,13 @@ class PrefixCommands(BaseCog):
             result = await prefix_manager.remove_user_prefix(ctx.author.id)
 
             if result:
-                await ctx.send(
+                await ctx.reply(
                     embed=self.success_embed(
                         description="your personal prefix has been reset"
                     )
                 )
             else:
-                await ctx.send(
+                await ctx.reply(
                     embed=self.warning_embed(
                         description="you don't have a personal prefix to reset"
                     )
@@ -154,7 +154,7 @@ class PrefixCommands(BaseCog):
 
         # Check prefix length
         if len(new_prefix) > 10:
-            return await ctx.send(
+            return await ctx.reply(
                 embed=self.error_embed(
                     description="prefix must be 10 characters or less"
                 )
@@ -166,7 +166,7 @@ class PrefixCommands(BaseCog):
         # Set the new prefix
         await prefix_manager.set_user_prefix(ctx.author.id, new_prefix)
 
-        await ctx.send(
+        await ctx.reply(
             embed=self.success_embed(
                 description=f"your personal prefix set to `{new_prefix}`"
             )
@@ -184,13 +184,13 @@ class PrefixCommands(BaseCog):
         result = await prefix_manager.remove_guild_prefix(ctx.guild.id)
 
         if result:
-            await ctx.send(
+            await ctx.reply(
                 embed=self.success_embed(
                     description=f"server prefix removed, using `{config.PREFIX}` now"
                 )
             )
         else:
-            await ctx.send(
+            await ctx.reply(
                 embed=self.warning_embed(
                     description="this server doesn't have a custom prefix set"
                 )

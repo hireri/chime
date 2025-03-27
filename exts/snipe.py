@@ -135,7 +135,7 @@ class Snipe(BaseCog):
         self.message_history.pop(ctx.channel.id, None)
         self.edit_history.pop(ctx.channel.id, None)
         self.reaction_history.pop(ctx.channel.id, None)
-        await ctx.send(
+        await ctx.reply(
             embed=self.success_embed(description="cleared all sniped messages")
         )
 
@@ -145,7 +145,7 @@ class Snipe(BaseCog):
     async def reactionsnipe(self, ctx):
         history = self.reaction_history.get(ctx.channel.id, [])
         if not history:
-            return await ctx.send(
+            return await ctx.reply(
                 embed=self.warning_embed(
                     description="no recent reactions in this channel"
                 )
@@ -164,7 +164,7 @@ class Snipe(BaseCog):
         )
         embed.set_author(name=user.display_name, icon_url=user.display_avatar.url)
         embed.timestamp = timestamp
-        await ctx.send(embed=embed)
+        await ctx.reply(embed=embed)
 
     @commands.command(
         name="reactionhistory", description="See logged reactions for a message"
@@ -177,7 +177,7 @@ class Snipe(BaseCog):
                     await ctx.fetch_message(ctx.message.reference.message_id)
                 ).jump_url
             elif not message_link:
-                return await ctx.send(
+                return await ctx.reply(
                     embed=self.error_embed(description="no message provided")
                 )
 
@@ -186,7 +186,7 @@ class Snipe(BaseCog):
             message = await channel.fetch_message(message_id)
 
         except Exception:
-            return await ctx.send(
+            return await ctx.reply(
                 embed=self.error_embed(description="invalid message link")
             )
 
@@ -197,7 +197,7 @@ class Snipe(BaseCog):
         ]
 
         if not reactions:
-            return await ctx.send(
+            return await ctx.reply(
                 embed=self.warning_embed(
                     description="no recent reaction history for this message"
                 )
@@ -218,7 +218,7 @@ class Snipe(BaseCog):
         embed.set_author(name="Reaction history")
         for emoji, users in grouped_reactions.items():
             embed.add_field(name=emoji, value=", ".join(users), inline=True)
-        await ctx.send(embed=embed)
+        await ctx.reply(embed=embed)
 
     @commands.command(
         name="editsnipe", description="Snipe the latest message that was edited"
@@ -226,7 +226,7 @@ class Snipe(BaseCog):
     async def editsnipe(self, ctx, index: int = 1):
         history = self.edit_history.get(ctx.channel.id, [])
         if not history:
-            return await ctx.send(
+            return await ctx.reply(
                 embed=self.warning_embed(description="no recent edits in this channel")
             )
 
@@ -237,7 +237,7 @@ class Snipe(BaseCog):
         ]
 
         if index < 1 or index > len(valid_edits):
-            return await ctx.send(
+            return await ctx.reply(
                 embed=self.error_embed(
                     f"invalid index. there are {len(valid_edits)} recent edits"
                 )
@@ -268,7 +268,7 @@ class Snipe(BaseCog):
     async def snipe(self, ctx, index: int = 1):
         history = self.message_history.get(ctx.channel.id, [])
         if not history:
-            return await ctx.send(
+            return await ctx.reply(
                 embed=self.warning_embed(
                     description="no recent deletions in this channel"
                 )
@@ -281,7 +281,7 @@ class Snipe(BaseCog):
         ]
 
         if index < 1 or index > len(valid_deletions):
-            return await ctx.send(
+            return await ctx.reply(
                 embed=self.error_embed(
                     f"invalid index. there are {len(valid_deletions)} recent deletions"
                 )
@@ -303,7 +303,7 @@ class Snipe(BaseCog):
             embed.timestamp = timestamp
             embed.set_footer(text=f"{index} of {len(valid_deletions)}")
 
-        await ctx.send(embeds=embeds)
+        await ctx.reply(embeds=embeds)
 
 
 async def setup(bot):

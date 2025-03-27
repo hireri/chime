@@ -24,7 +24,7 @@ class Debug(BaseCog):
                 description="the configuration file hasn't been modified since last reload.",
             )
 
-        await ctx.send(embed=embed)
+        await ctx.reply(embed=embed)
 
     @commands.command(name="dbg", brief="debug the bot configuration")
     @commands.is_owner()

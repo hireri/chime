@@ -22,7 +22,7 @@ class Info(BaseCog):
 
         start_time = datetime.datetime.utcnow()
 
-        message = await ctx.send(
+        message = await ctx.reply(
             embed=self.embed(
                 description=f"{config.WAIT_ICON} pinging...", color=config.WARN_COLOR
             )
@@ -49,7 +49,7 @@ class Info(BaseCog):
         user = user or ctx.author
         embed = self.embed(description=f"**{user.name}**'s avatar")
         embed.set_image(url=user.avatar.url)
-        await ctx.send(embed=embed)
+        await ctx.reply(embed=embed)
 
     @commands.command(name="banner", brief="get an user's banner", aliases=["bn"])
     async def banner(self, ctx, user: discord.Member = None):
@@ -57,7 +57,7 @@ class Info(BaseCog):
         user = await self.bot.fetch_user(user.id)
 
         if not user.banner:
-            return await ctx.send(
+            return await ctx.reply(
                 embed=self.error_embed(
                     description="no banner set",
                 )
@@ -65,7 +65,7 @@ class Info(BaseCog):
 
         embed = self.embed(title=f"{user.name}'s banner")
         embed.set_image(url=user.banner.url)
-        await ctx.send(embed=embed)
+        await ctx.reply(embed=embed)
 
     @commands.command(
         name="guildavatar",
@@ -74,7 +74,7 @@ class Info(BaseCog):
     )
     async def guildavatar(self, ctx):
         if not ctx.guild.icon:
-            return await ctx.send(
+            return await ctx.reply(
                 embed=self.error_embed(
                     description="no icon set",
                 )
@@ -82,7 +82,7 @@ class Info(BaseCog):
 
         embed = self.embed(description=f"**{ctx.guild.name}**'s icon")
         embed.set_image(url=ctx.guild.icon.url)
-        await ctx.send(embed=embed)
+        await ctx.reply(embed=embed)
 
     @commands.command(
         name="guildbanner",
@@ -91,7 +91,7 @@ class Info(BaseCog):
     )
     async def guildbanner(self, ctx):
         if not ctx.guild.banner:
-            return await ctx.send(
+            return await ctx.reply(
                 embed=self.error_embed(
                     description="no banner set",
                 )
@@ -99,18 +99,18 @@ class Info(BaseCog):
 
         embed = self.embed(description=f"**{ctx.guild.name}**'s banner")
         embed.set_image(url=ctx.guild.banner.url)
-        await ctx.send(embed=embed)
+        await ctx.reply(embed=embed)
 
     @commands.command(name="splash", brief="view the server splash image")
     async def splash(self, ctx):
         """view the server splash image"""
         if not ctx.guild.splash:
-            return await ctx.send(
+            return await ctx.reply(
                 embed=self.error_embed(
                     description="no splash set",
                 )
             )
-        await ctx.send(
+        await ctx.reply(
             embed=self.embed(description=f"**{ctx.guild.name}**'s splash").set_image(
                 url=ctx.guild.splash.url
             )
@@ -123,7 +123,7 @@ class Info(BaseCog):
         """view all server boosters"""
         boosters = [i.mention for i in ctx.guild.premium_subscribers]
         if not boosters:
-            return await ctx.send(
+            return await ctx.reply(
                 embed=self.warning_embed(
                     description="no boosters found",
                 )
@@ -133,14 +133,14 @@ class Info(BaseCog):
             title="boosters", description=f"{' '.join(boosters)}", color=0xE668E2
         )
         embed.set_thumbnail(url=ctx.guild.icon.url)
-        await ctx.send(embed=embed)
+        await ctx.reply(embed=embed)
 
     @commands.command(name="bots", brief="view all bots in the server")
     async def bots(self, ctx):
         """view all bots in the server"""
         bots = [i.mention for i in ctx.guild.members if i.bot]
         if not bots:
-            return await ctx.send(
+            return await ctx.reply(
                 embed=self.warning_embed(
                     description="no bots found",
                 )
@@ -149,7 +149,7 @@ class Info(BaseCog):
         bots_text = " ".join(bots)
         embed = self.embed(title="bots", description=bots_text)
         embed.set_thumbnail(url=ctx.guild.icon.url)
-        await ctx.send(embed=embed)
+        await ctx.reply(embed=embed)
 
     @commands.command(name="channelinfo", brief="get info about a channel")
     async def channelinfo(self, ctx, channel: discord.TextChannel = None):
@@ -172,12 +172,12 @@ class Info(BaseCog):
             inline=True,
         )
 
-        await ctx.send(embed=embed)
+        await ctx.reply(embed=embed)
 
     @commands.group(name="emoji", brief="manage emojis", invoke_without_subcommand=True)
     async def emoji(self, ctx):
         if not ctx.invoked_subcommand:
-            await ctx.send_help(ctx.command)
+            await ctx.reply_help(ctx.command)
 
     @commands.command(name="userinfo", brief="get info about a user", aliases=["ui"])
     async def userinfo(self, ctx, user: discord.Member = None):
@@ -198,7 +198,56 @@ class Info(BaseCog):
         embed.set_thumbnail(url=user.avatar.url)
         if global_user.banner:
             embed.set_image(url=global_user.banner.url)
-        await ctx.send(embed=embed)
+        await ctx.reply(embed=embed)
+
+    @commands.command(
+        name="serverinfo", brief="get info about a server", aliases=["si"]
+    )
+    async def serverinfo(self, ctx):
+        """get info about a server"""
+        guild = ctx.guild
+
+        banner = f"[URL]({guild.banner.url})" if guild.banner else "Unset"
+        splash = f"[URL]({guild.splash.url})" if guild.splash else "Unset"
+        icon = f"[URL]({guild.icon.url})" if guild.icon else "Unset"
+
+        embed = self.embed(
+            description=f"id: `{guild.id}`\n{guild.description}", color=guild.me.color
+        )
+        embed.set_author(name=f"{guild.name}'s info", icon_url=guild.icon.url)
+        embed.add_field(
+            name="Created at",
+            value=f"<t:{int(guild.created_at.timestamp())}:D> | **{timeago.format(guild.created_at.replace(tzinfo=None), datetime.datetime.utcnow())}**",
+            inline=False,
+        )
+        embed.add_field(
+            name="Owner",
+            value=f"{guild.owner.mention}",
+            inline=True,
+        )
+        embed.add_field(
+            name=f"Members: **{guild.member_count}**",
+            value=f"├ bots: **{len([i for i in guild.members if i.bot])}**\n└ users: **{len([i for i in guild.members if not i.bot])}**",
+            inline=True,
+        )
+        embed.add_field(
+            name="Info",
+            value=f"├ Verification: **{guild.verification_level}**\n├ Boosts: **{guild.premium_subscription_count}**\n└ Level **{guild.premium_tier}**",
+        )
+        embed.add_field(
+            name=f"Channels: **{len(guild.channels)}**",
+            value=f"├ Categories: **{len([i for i in guild.categories])}**\n├ Text: **{len([i for i in guild.text_channels])}**\n└ Voice: **{len([i for i in guild.voice_channels])}**",
+        )
+        embed.add_field(
+            name="Stats",
+            value=f"├ Roles: **{len(guild.roles)}**\n├ Emojis: **{len(guild.emojis)}**\n└ Boosters: **{len([i for i in guild.premium_subscribers])}**",
+        )
+        embed.add_field(
+            name="Assets",
+            value=f"├ Icon: **{icon}**\n├ Banner: **{banner}**\n└ Splash: **{splash}**",
+        )
+        embed.set_thumbnail(url=guild.icon.url)
+        await ctx.reply(embed=embed)
 
     @emoji.command(name="add", brief="add an emoji to the server")
     @commands.has_permissions(manage_emojis=True)
@@ -229,7 +278,7 @@ class Info(BaseCog):
                 # Validate URL
                 parsed_url = urlparse(emoji_source)
                 if not all([parsed_url.scheme, parsed_url.netloc]):
-                    await ctx.send(
+                    await ctx.reply(
                         embed=self.error_embed(
                             description="provide a valid image / URL"
                         )
@@ -241,7 +290,7 @@ class Info(BaseCog):
                 # Download image from URL
                 async with ctx.bot.session.get(emoji_source) as resp:
                     if resp.status != 200:
-                        await ctx.send(
+                        await ctx.reply(
                             embed=self.error_embed(
                                 description="could not download the image"
                             )
@@ -258,7 +307,7 @@ class Info(BaseCog):
 
         # No attachment and no emoji_source
         else:
-            await ctx.send(
+            await ctx.reply(
                 embed=self.error_embed(
                     description="please provide an image / URL / emoji"
                 ),
@@ -273,22 +322,22 @@ class Info(BaseCog):
             emoji = await ctx.guild.create_custom_emoji(
                 name=emoji_name, image=emoji_img
             )
-            await ctx.send(
+            await ctx.reply(
                 embed=self.success_embed(description=f"emoji added: {emoji}")
             )
         except discord.HTTPException as e:
             if e.code == 308:
-                await ctx.send(
+                await ctx.reply(
                     embed=self.error_embed(
                         description="server has reached the maximum number of emojis"
                     )
                 )
             elif e.code == 400:
-                await ctx.send(
+                await ctx.reply(
                     embed=self.error_embed(description="invalid image or emoji name")
                 )
             else:
-                await ctx.send(
+                await ctx.reply(
                     embed=self.error_embed(description="failed to add emoji")
                 )
 
@@ -317,15 +366,15 @@ class Info(BaseCog):
         try:
             emoji = discord.utils.get(ctx.guild.emojis, name=emoji.split(":")[1])
         except:
-            return await ctx.send(
+            return await ctx.reply(
                 embed=self.error_embed(description="emoji appears invalid")
             )
         if emoji and emoji.guild.id == ctx.guild.id:
             await emoji.delete()
-            return await ctx.send(
+            return await ctx.reply(
                 embed=self.success_embed(description=f"emoji removed: **{emoji.name}**")
             )
-        await ctx.send(
+        await ctx.reply(
             embed=self.error_embed(description="this emoji is not from this server")
         )
 
@@ -414,7 +463,7 @@ class Info(BaseCog):
         dictionary_api = "https://api.dictionaryapi.dev/api/v2/entries/en/{}"
         async with self.bot.session.get(dictionary_api.format(word)) as response:
             if response.status != 200:
-                await ctx.send(
+                await ctx.reply(
                     embed=self.error_embed(
                         description=f"could not find definition for **{word}**"
                     )
@@ -425,7 +474,7 @@ class Info(BaseCog):
                 data = await response.json()
 
                 if not data:
-                    await ctx.send(
+                    await ctx.reply(
                         embed=self.error_embed(
                             description=f"no definitions found for **{word}**"
                         )
@@ -469,7 +518,7 @@ class Info(BaseCog):
                 await self.paginate(ctx, pages, compact=True)
 
             except Exception as e:
-                return await ctx.send(
+                return await ctx.reply(
                     embed=self.error_embed(description="failed to get definition")
                 )
 
@@ -499,12 +548,12 @@ class Info(BaseCog):
         """shows users with a role"""
         users = [user for user in ctx.guild.members if role in user.roles]
         if not users:
-            return await ctx.send(
+            return await ctx.reply(
                 embed=self.error_embed(
                     description=f"no users with the role {role.name}",
                 )
             )
-        await ctx.send(
+        await ctx.reply(
             embed=self.embed(
                 description=" ".join([user.mention for user in users]),
             ).set_author(name=f"users for @{role.name}")
@@ -525,7 +574,7 @@ class Info(BaseCog):
             name="bots", value=f"{len([i for i in ctx.guild.members if i.bot]):,}"
         )
         embed.set_thumbnail(url=ctx.guild.icon.url)
-        await ctx.send(embed=embed)
+        await ctx.reply(embed=embed)
 
     @commands.command(name="roleinfo", brief="get info about a role")
     @commands.has_permissions(manage_roles=True)
@@ -550,7 +599,7 @@ class Info(BaseCog):
             name="created at",
             value=f"<t:{int(role.created_at.timestamp())}:D> | **{timeago.format(role.created_at.replace(tzinfo=None), datetime.datetime.utcnow())}**",
         )
-        await ctx.send(embed=embed)
+        await ctx.reply(embed=embed)
 
 
 async def setup(bot):

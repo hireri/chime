@@ -33,15 +33,12 @@ class ErrorHandler(BaseCog):
         """
         embed = self.error_embed(description=error_msg)
 
-        # Add traceback info if needed
         if should_trace and exception:
-            # Get the traceback info from the actual exception
             tb = traceback.format_exception(
                 type(exception), exception, exception.__traceback__
             )
             tb_text = "".join(tb)
 
-            # Truncate traceback if it's too long
             if len(tb_text) > 1000:
                 tb_text = f"{tb_text[:997]}..."
 
@@ -49,9 +46,8 @@ class ErrorHandler(BaseCog):
                 name="traceback", value=f"```py\n{tb_text}\n```", inline=False
             )
 
-        # Send the error message
         if isinstance(ctx, commands.Context):
-            return await ctx.send(embed=embed)
+            return await ctx.reply(embed=embed)
         elif isinstance(ctx, discord.Interaction):
             if ctx.response.is_done():
                 return await ctx.followup.send(embed=embed, ephemeral=True)
@@ -63,20 +59,15 @@ class ErrorHandler(BaseCog):
     @commands.Cog.listener()
     async def on_command_error(self, ctx: commands.Context, error: Exception) -> None:
         """handle command errors (prefix commands)"""
-        # Don't handle errors that have been handled locally
         if hasattr(ctx, "handled_error") and ctx.handled_error:
             return
 
-        # Get the original error if it's wrapped
         if hasattr(error, "original"):
             error = error.original
 
-        # Log the error
         self.logger.error(f"Command error in {ctx.command}: {error}", exc_info=error)
 
-        # Handle different error types
         if isinstance(error, commands.CommandNotFound):
-            # Don't respond to command not found errors
             return
 
         elif isinstance(error, commands.MissingRequiredArgument):
@@ -163,13 +154,10 @@ class ErrorHandler(BaseCog):
             )
 
         else:
-            # Log unexpected errors to console with traceback
             self.logger.error("Unhandled command error", exc_info=error)
 
-            # Log to a channel if configured
             await self._log_to_channel(ctx, error)
 
-            # Send a generic error message with traceback for owners
             is_owner = await self.bot.is_owner(ctx.author)
 
             await self._send_error_message(
@@ -184,21 +172,16 @@ class ErrorHandler(BaseCog):
         self, interaction: discord.Interaction, error: Exception
     ) -> None:
         """handle application command errors (slash commands)"""
-        # Get the command that was executed
         command_name = interaction.command.name if interaction.command else "Unknown"
 
-        # Get the original error if it's wrapped
         if hasattr(error, "original"):
             error = error.original
 
-        # Log the error
         self.logger.error(
             f"Slash command error in {command_name}: {error}", exc_info=error
         )
 
-        # Handle different error types
         if isinstance(error, discord.app_commands.CommandNotFound):
-            # Don't respond to command not found errors
             return
 
         elif isinstance(error, discord.app_commands.MissingPermissions):
@@ -232,13 +215,10 @@ class ErrorHandler(BaseCog):
             )
 
         else:
-            # Log unexpected errors to console with traceback
             self.logger.error("Unhandled slash command error", exc_info=error)
 
-            # Log to a channel if configured
             await self._log_to_channel(interaction, error)
 
-            # Send a generic error message with traceback for owners
             is_owner = await self.bot.is_owner(interaction.user)
 
             await self._send_error_message(
@@ -259,13 +239,11 @@ class ErrorHandler(BaseCog):
             if not channel:
                 return
 
-            # Create an embed for the error
             embed = discord.Embed(
                 color=config.ERROR_COLOR,
                 timestamp=discord.utils.utcnow(),
             )
 
-            # Add command info
             if isinstance(ctx, commands.Context):
                 embed.add_field(
                     name="command info",
@@ -295,16 +273,13 @@ class ErrorHandler(BaseCog):
                     inline=False,
                 )
 
-            # Add error info
             embed.add_field(
                 name="error type", value=f"`{type(error).__name__}`", inline=False
             )
 
-            # Format the traceback
             tb = traceback.format_exception(type(error), error, error.__traceback__)
             tb_text = "".join(tb)
 
-            # Split traceback into chunks if needed
             if len(tb_text) > 1000:
                 chunks = [tb_text[i : i + 1000] for i in range(0, len(tb_text), 1000)]
                 for i, chunk in enumerate(chunks):
@@ -318,11 +293,9 @@ class ErrorHandler(BaseCog):
                     name="traceback", value=f"```py\n{tb_text}\n```", inline=False
                 )
 
-            # Send the embed
             await channel.send(embed=embed)
 
         except Exception as e:
-            # If error logging fails, just log to console
             self.logger.error(f"Failed to log error to channel: {e}", exc_info=e)
 
     @commands.command(name="error", hidden=True)
@@ -360,7 +333,7 @@ class ErrorHandler(BaseCog):
         elif error_type == "too_many_args":
             raise commands.TooManyArguments("Too many arguments provided for testing")
         else:
-            await ctx.send(
+            await ctx.reply(
                 embed=self.embed(
                     title="error tester",
                     description=(
@@ -377,32 +350,30 @@ class ErrorHandler(BaseCog):
     async def set_error_channel(self, ctx, channel: discord.TextChannel = None):
         """set or view the channel for error logging"""
         if channel:
-            # Set the error channel
             self.bot.error_channel_id = channel.id
-            await ctx.send(
+            await ctx.reply(
                 embed=self.success_embed(
                     description=f"error channel set to {channel.mention}"
                 )
             )
         else:
-            # Display current error channel
             error_channel_id = getattr(self.bot, "error_channel_id", None)
             if error_channel_id:
                 channel = self.bot.get_channel(error_channel_id)
                 if channel:
-                    await ctx.send(
+                    await ctx.reply(
                         embed=self.embed(
                             description=f"current error channel: {channel.mention}"
                         )
                     )
                 else:
-                    await ctx.send(
+                    await ctx.reply(
                         embed=self.warning_embed(
                             description=f"error channel is set to ID `{error_channel_id}` but I cannot access it"
                         )
                     )
             else:
-                await ctx.send(
+                await ctx.reply(
                     embed=self.warning_embed(description="no error channel is set")
                 )
 

@@ -32,7 +32,6 @@ class MyHelpCommand(commands.HelpCommand):
         return command.short_doc or command.description or "no description"
 
     async def send_bot_help(self, mapping):
-        # Check if config has been modified
         config.config.reload()
 
         embeds = []
@@ -67,7 +66,6 @@ class MyHelpCommand(commands.HelpCommand):
         await self.get_destination().send(embed=embeds[0], view=view)
 
     async def send_cog_help(self, cog):
-        # Check if config has been modified
         config.config.reload()
 
         embed = discord.Embed(
@@ -83,7 +81,6 @@ class MyHelpCommand(commands.HelpCommand):
         await self.get_destination().send(embed=embed)
 
     async def send_command_help(self, command):
-        # Check if config has been modified
         config.config.reload()
 
         embed = discord.Embed(
@@ -99,7 +96,6 @@ class MyHelpCommand(commands.HelpCommand):
         await self.get_destination().send(embed=embed)
 
     async def send_group_help(self, group):
-        # Check if config has been modified
         config.config.reload()
 
         embed = discord.Embed(

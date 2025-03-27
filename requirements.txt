@@ -1,0 +1,10 @@
+googlesearch-python
+discord
+aiohttp
+asyncpg
+psutil
+timeago
+emojis
+dotenv
+git+https://github.com/scarletcafe/jishaku@master
+duckduckgo-images-api

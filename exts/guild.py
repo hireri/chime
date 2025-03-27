@@ -19,14 +19,14 @@ class Guild(BaseCog):
             await channel.set_permissions(ctx.guild.default_role, send_messages=False)
 
         if len(channels) == 1:
-            await ctx.send(
+            await ctx.reply(
                 embed=self.success_embed(
                     description=f"{channels[0].mention} has been **locked**"
                 )
             )
         else:
             await ctx.message.remove_reaction(config.THINK_ICON, self.bot.user)
-            await ctx.send(
+            await ctx.reply(
                 embed=self.success_embed(
                     description=f"**{len(channels)}** channels have been **locked**"
                 )
@@ -44,14 +44,14 @@ class Guild(BaseCog):
             await channel.set_permissions(ctx.guild.default_role, send_messages=True)
 
         if len(channels) == 1:
-            await ctx.send(
+            await ctx.reply(
                 embed=self.success_embed(
                     description=f"{channels[0].mention} has been **unlocked**"
                 )
             )
         else:
             await ctx.message.remove_reaction(config.THINK_ICON, self.bot.user)
-            await ctx.send(
+            await ctx.reply(
                 embed=self.success_embed(
                     description=f"**{len(channels)}** channels have been **unlocked**"
                 )
@@ -68,14 +68,14 @@ class Guild(BaseCog):
             await channel.set_permissions(ctx.guild.default_role, view_channel=False)
 
         if len(channels) == 1:
-            await ctx.send(
+            await ctx.reply(
                 embed=self.success_embed(
                     description=f"{channels[0].mention} has been **hidden**"
                 )
             )
         else:
             await ctx.message.remove_reaction(config.THINK_ICON, self.bot.user)
-            await ctx.send(
+            await ctx.reply(
                 embed=self.success_embed(
                     description=f"**{len(channels)}** channels have been **hidden**"
                 )
@@ -92,14 +92,14 @@ class Guild(BaseCog):
             await channel.set_permissions(ctx.guild.default_role, view_channel=True)
 
         if len(channels) == 1:
-            await ctx.send(
+            await ctx.reply(
                 embed=self.success_embed(
                     description=f"{channels[0].mention} is now **visible**"
                 )
             )
         else:
             await ctx.message.remove_reaction(config.THINK_ICON, self.bot.user)
-            await ctx.send(
+            await ctx.reply(
                 embed=self.success_embed(
                     description=f"**{len(channels)}** channels are now **visible**"
                 )
@@ -115,7 +115,7 @@ class Guild(BaseCog):
     ):
         """Set slowmode for a channel"""
         if seconds < 0 or seconds > 21600:
-            return await ctx.send(
+            return await ctx.reply(
                 embed=self.error_embed(
                     description="slowmode must be between 0 and 21600 seconds"
                 )
@@ -131,13 +131,13 @@ class Guild(BaseCog):
         if seconds > 0:
             if len(channels) > 1:
                 await ctx.message.remove_reaction(config.THINK_ICON, self.bot.user)
-                await ctx.send(
+                await ctx.reply(
                     embed=self.success_embed(
                         description=f"**{len(channels)}** channels have **{seconds}s slowmode**"
                     )
                 )
             else:
-                await ctx.send(
+                await ctx.reply(
                     embed=self.success_embed(
                         description=f"{ctx.channel.mention} slowmode set to **{seconds} seconds**"
                     )
@@ -145,13 +145,13 @@ class Guild(BaseCog):
         else:
             if len(channels) > 1:
                 await ctx.message.remove_reaction(config.THINK_ICON, self.bot.user)
-                await ctx.send(
+                await ctx.reply(
                     embed=self.success_embed(
                         description=f"**{len(channels)}** channels have **disabled slowmode**"
                     )
                 )
             else:
-                await ctx.send(
+                await ctx.reply(
                     embed=self.success_embed(
                         description=f"{ctx.channel.mention} slowmode **disabled**"
                     )
@@ -162,7 +162,7 @@ class Guild(BaseCog):
     async def slowall(self, ctx, seconds: int):
         """Set slowmode for all channels"""
         if seconds < 0 or seconds > 21600:
-            return await ctx.send(
+            return await ctx.reply(
                 embed=self.error_embed(
                     description="slowmode must be between 0 and 21600 seconds"
                 )
@@ -179,13 +179,13 @@ class Guild(BaseCog):
         await ctx.message.remove_reaction(config.THINK_ICON, self.bot.user)
 
         if seconds > 0:
-            await ctx.send(
+            await ctx.reply(
                 embed=self.success_embed(
                     description=f"slowmode set to **{seconds} seconds** for all channels"
                 )
             )
         else:
-            await ctx.send(
+            await ctx.reply(
                 embed=self.success_embed(
                     description=f"slowmode **disabled** for all channels"
                 )
@@ -338,13 +338,13 @@ class Guild(BaseCog):
         if not perms.send_messages:
             perms.update(send_messages=True)
             await role.edit(permissions=perms)
-            await ctx.send(
+            await ctx.reply(
                 embed=self.success_embed(description=f"the server is now **unlocked**")
             )
         else:
             perms.update(send_messages=False)
             await role.edit(permissions=perms)
-            await ctx.send(
+            await ctx.reply(
                 embed=self.success_embed(description=f"the server is in **lockdown**")
             )
 

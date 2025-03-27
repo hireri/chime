@@ -84,12 +84,12 @@ class BaseCog(commands.Cog):
     ):
         """send paginated embeds with navigation buttons"""
         if not pages:
-            return await ctx.send(
+            return await ctx.reply(
                 embed=self.error_embed(description="no pages to display")
             )
 
         if len(pages) == 1:
-            return await ctx.send(embed=pages[0])
+            return await ctx.reply(embed=pages[0])
 
         # Create view with enhanced navigation buttons
         class PaginationView(discord.ui.View):
@@ -237,7 +237,7 @@ class BaseCog(commands.Cog):
                         pass
 
         view = PaginationView(pages)
-        view.message = await ctx.send(embed=pages[0], view=view)
+        view.message = await ctx.reply(embed=pages[0], view=view)
         return view.message
 
     async def create_dropdown_menu(
@@ -283,7 +283,7 @@ class BaseCog(commands.Cog):
             The sent message
         """
         if not category_pages:
-            return await ctx.send(
+            return await ctx.reply(
                 embed=self.error_embed(description="no categories to display")
             )
 
@@ -458,5 +458,5 @@ class BaseCog(commands.Cog):
 
         # Create and send view
         view = CombinedView(category_pages)
-        view.message = await ctx.send(embed=first_page, view=view)
+        view.message = await ctx.reply(embed=first_page, view=view)
         return view.message

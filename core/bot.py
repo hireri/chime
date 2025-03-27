@@ -31,6 +31,7 @@ class Core(commands.Bot):
         self.start_time = datetime.datetime.utcnow()
         self.session = None
         self.strip_after_prefix = True
+        self.application_emojis = {}
 
     async def setup_hook(self):
         """Initialize aiohttp session, database, and any other async startup tasks"""
@@ -76,6 +77,10 @@ class Core(commands.Bot):
             logger.warning(f"Failed to load {len(failed_extensions)} extensions")
 
         logger.info("Bot setup complete")
+
+        if not self.application_emojis:
+            emojis = await self.fetch_application_emojis()
+            self.application_emojis = {emoji.id: emoji for emoji in emojis}
 
     async def on_ready(self):
         """Called when the bot is ready and connected to Discord"""
