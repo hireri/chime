@@ -27,11 +27,8 @@ class BaseCog(commands.Cog):
 
     async def cog_check(self, ctx):
         """global check for all commands in this cog"""
-        # You can implement global checks here, e.g., checking if the command is run in a guild
-        # Return True to allow the command, False to deny it
         return True
 
-    # Utility methods for creating embeds
     def embed(
         self,
         title: str = None,
@@ -40,7 +37,6 @@ class BaseCog(commands.Cog):
         show_time=False,
     ) -> discord.Embed:
         """create an embed with the main color"""
-        # Check if config has been modified
         config.config.reload()
 
         return discord.Embed(
@@ -78,7 +74,6 @@ class BaseCog(commands.Cog):
             color=config.WARN_COLOR,
         )
 
-    # Utility methods for UI components
     async def paginate(
         self, ctx, pages: List[discord.Embed], timeout: int = 60, compact=False
     ):
@@ -91,14 +86,12 @@ class BaseCog(commands.Cog):
         if len(pages) == 1:
             return await ctx.reply(embed=pages[0])
 
-        # Create view with enhanced navigation buttons
         class PaginationView(discord.ui.View):
             def __init__(self, pages):
                 super().__init__(timeout=timeout)
                 self.pages = pages
                 self.current_page = 0
 
-                # First page button
                 if not compact:
                     self.add_item(
                         discord.ui.Button(
@@ -109,7 +102,6 @@ class BaseCog(commands.Cog):
                         )
                     )
 
-                # Previous page button
                 self.add_item(
                     discord.ui.Button(
                         emoji=config.PREV_ICON,
@@ -119,7 +111,6 @@ class BaseCog(commands.Cog):
                     )
                 )
 
-                # Page indicator/jump button
                 self.add_item(
                     discord.ui.Button(
                         label=f"1/{len(pages)}",
@@ -130,7 +121,6 @@ class BaseCog(commands.Cog):
                     )
                 )
 
-                # Next page button
                 self.add_item(
                     discord.ui.Button(
                         emoji=config.NEXT_ICON,
@@ -141,7 +131,6 @@ class BaseCog(commands.Cog):
                 )
 
                 if not compact:
-                    # Last page button
                     self.add_item(
                         discord.ui.Button(
                             emoji=config.LAST_ICON,
@@ -151,7 +140,6 @@ class BaseCog(commands.Cog):
                         )
                     )
 
-                # Set callbacks for all buttons
                 for child in self.children:
                     child.callback = self.button_callback
 
@@ -176,7 +164,7 @@ class BaseCog(commands.Cog):
                 elif button_id == "last":
                     self.current_page = len(self.pages) - 1
                 elif button_id == "page":
-                    # Create modal for page input
+
                     class PageInputModal(discord.ui.Modal, title="Jump to Page"):
                         page_number = discord.ui.TextInput(
                             label=f"enter page number (1-{len(self.pages)})",
@@ -190,12 +178,14 @@ class BaseCog(commands.Cog):
                         ):
                             try:
                                 page = int(self.page_number.value)
-                                if 1 <= page <= len(self.pages):
+                                if 1 <= page <= len(self.view.pages):
                                     self.view.current_page = page - 1
 
                                     for child in self.view.children:
                                         if child.custom_id == "page":
-                                            child.label = f"{self.view.children}/{len(self.view.pages)}"
+                                            child.label = (
+                                                f"{page}/{len(self.view.pages)}"
+                                            )
 
                                     await modal_interaction.response.edit_message(
                                         embed=self.view.pages[self.view.current_page],
@@ -216,7 +206,6 @@ class BaseCog(commands.Cog):
                     await interaction.response.send_modal(modal)
                     return
 
-                # Update the page button label
                 for child in self.children:
                     if child.custom_id == "page":
                         child.label = f"{self.current_page + 1}/{len(self.pages)}"
@@ -226,7 +215,6 @@ class BaseCog(commands.Cog):
                 )
 
             async def on_timeout(self):
-                # Disable buttons when the view times out
                 message = self.message
                 if message:
                     try:
@@ -258,7 +246,6 @@ class BaseCog(commands.Cog):
         Returns:
             The sent message
         """
-        # Convert single embeds to lists for combined menu
         category_pages = {key: [embed] for key, embed in embeds.items()}
         return await self.create_combined_menu(
             ctx, category_pages, placeholder, timeout
@@ -287,7 +274,6 @@ class BaseCog(commands.Cog):
                 embed=self.error_embed(description="no categories to display")
             )
 
-        # Create a view with both dropdown and pagination
         class CombinedView(discord.ui.View):
             def __init__(self, category_pages_dict):
                 super().__init__(timeout=timeout)
@@ -295,7 +281,6 @@ class BaseCog(commands.Cog):
                 self.current_category = next(iter(category_pages_dict.keys()))
                 self.current_page = 0
 
-                # Create a dropdown with category options
                 self.select = discord.ui.Select(
                     placeholder=placeholder,
                     options=[
@@ -304,22 +289,17 @@ class BaseCog(commands.Cog):
                     ],
                 )
 
-                # Set callback
                 self.select.callback = self.dropdown_callback
                 self.add_item(self.select)
 
-                # Add pagination buttons if needed
                 self.update_buttons()
 
             def update_buttons(self):
-                # Remove any existing buttons
                 for item in list(self.children):
                     if isinstance(item, discord.ui.Button):
                         self.remove_item(item)
 
-                # Only add buttons if current category has multiple pages
                 if len(self.category_pages[self.current_category]) > 1:
-                    # First page button
                     self.add_item(
                         NavigationButton(
                             emoji=config.FIRST_ICON,
@@ -329,7 +309,6 @@ class BaseCog(commands.Cog):
                         )
                     )
 
-                    # Previous page button
                     self.add_item(
                         NavigationButton(
                             emoji=config.PREV_ICON,
@@ -339,7 +318,6 @@ class BaseCog(commands.Cog):
                         )
                     )
 
-                    # Page indicator/jump button
                     total_pages = len(self.category_pages[self.current_category])
                     self.add_item(
                         PageButton(
@@ -351,7 +329,6 @@ class BaseCog(commands.Cog):
                         )
                     )
 
-                    # Next page button
                     self.add_item(
                         NavigationButton(
                             emoji=config.NEXT_ICON,
@@ -361,7 +338,6 @@ class BaseCog(commands.Cog):
                         )
                     )
 
-                    # Last page button
                     self.add_item(
                         NavigationButton(
                             emoji=config.LAST_ICON,
@@ -373,9 +349,8 @@ class BaseCog(commands.Cog):
 
             async def dropdown_callback(self, interaction: discord.Interaction):
                 self.current_category = self.select.values[0]
-                self.current_page = 0  # Reset to first page when changing categories
+                self.current_page = 0
 
-                # Update buttons based on the new category
                 self.update_buttons()
 
                 await interaction.response.edit_message(
@@ -393,7 +368,6 @@ class BaseCog(commands.Cog):
                     except:
                         pass
 
-        # Custom button class for navigation
         class NavigationButton(discord.ui.Button):
             async def callback(self, interaction: discord.Interaction):
                 view = self.view
@@ -408,7 +382,6 @@ class BaseCog(commands.Cog):
                 elif self.custom_id == "last":
                     view.current_page = len(pages) - 1
 
-                # Update the page button label
                 for child in view.children:
                     if isinstance(child, PageButton):
                         child.label = f"{view.current_page + 1}/{len(pages)}"
@@ -417,13 +390,11 @@ class BaseCog(commands.Cog):
                     embed=pages[view.current_page], view=view
                 )
 
-        # Page jump button with modal
         class PageButton(discord.ui.Button):
             async def callback(self, interaction: discord.Interaction):
                 view = self.view
                 pages = view.category_pages[view.current_category]
 
-                # Create modal for page input
                 class PageInputModal(discord.ui.Modal, title="jump to page"):
                     page_number = discord.ui.TextInput(
                         label=f"enter page number (1-{len(pages)})",
@@ -442,21 +413,19 @@ class BaseCog(commands.Cog):
                                 )
                             else:
                                 await modal_interaction.response.send_message(
-                                    f"please enter a number between 1 and {len(pages)}.",
+                                    f"enter a number between 1 and {len(pages)}.",
                                     ephemeral=True,
                                 )
                         except ValueError:
                             await modal_interaction.response.send_message(
-                                "please enter a valid number.", ephemeral=True
+                                "enter a valid number.", ephemeral=True
                             )
 
                 await interaction.response.send_modal(PageInputModal())
 
-        # Get the first category and page
         first_category = next(iter(category_pages.keys()))
         first_page = category_pages[first_category][0]
 
-        # Create and send view
         view = CombinedView(category_pages)
         view.message = await ctx.reply(embed=first_page, view=view)
         return view.message
