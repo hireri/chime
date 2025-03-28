@@ -4,6 +4,7 @@ import config
 import os
 import dotenv
 import traceback
+import random
 from groq import AsyncGroq
 from urllib.parse import urlparse
 from discord.ext import commands
@@ -139,7 +140,7 @@ class Fun(BaseCog):
             await ctx.send(embed=self.error_embed(description="the ai didn't respond"))
         await ctx.message.remove_reaction(config.THINK_ICON, self.bot.user)
 
-    @commands.group(name="tag", invoke_without_command=True)
+    @commands.group(name="tag", aliases=["tags"], invoke_without_command=True)
     async def tag(self, ctx, tag_name: str):
         """get a tag by its name"""
         tag = await db.get_tag(guild_id=ctx.guild.id, name=tag_name)
@@ -217,11 +218,19 @@ class Fun(BaseCog):
         if not tags:
             await ctx.send(embed=self.error_embed(description="no tags found"))
         else:
-            await ctx.send(
-                embed=self.embed(
-                    description="\n".join(f"**{tag['name']}**" for tag in tags)
-                ).set_author(name=name, icon_url=icon_url)
-            )
+            tags_per_page = 10
+            pages = []
+            for i in range(0, len(tags), tags_per_page):
+                page = tags[i : i + tags_per_page]
+                pages.append(
+                    self.embed(
+                        description="\n".join(
+                            f"- **{tag['name']}** by <@{tag['user_id']}>"
+                            for tag in page
+                        )
+                    ).set_author(name=name, icon_url=icon_url)
+                )
+            await self.paginate(ctx, pages)
 
     @tag.command(name="info")
     async def tag_info(self, ctx, tag_name: str):
@@ -286,6 +295,44 @@ class Fun(BaseCog):
 
         await db.reset_tags(guild_id=ctx.guild.id)
         await ctx.send(embed=self.success_embed(description="all tags deleted"))
+
+    @tag.command(name="random", aliases=["rand"])
+    async def random_tag(self, ctx):
+        """get a random tag"""
+        tags = await db.get_tags(guild_id=ctx.guild.id)
+        if not tags:
+            return await ctx.send(embed=self.error_embed(description="no tags found"))
+
+        tag = random.choice(tags)
+        await db.use_tag(tag["id"])
+        await ctx.send(f"**{tag['name']}**\n> {tag['content']}")
+
+    @tag.command(name="search", aliases=["find"])
+    async def search_tag(self, ctx, *, query):
+        """search for a tag"""
+        tags = await db.get_tags(guild_id=ctx.guild.id)
+        if not tags:
+            return await ctx.send(embed=self.error_embed(description="no tags found"))
+
+        tag_list = [tag for tag in tags if query in tag["name"].lower()]
+        if not tag_list:
+            return await ctx.send(embed=self.error_embed(description="tag not found"))
+
+        tags_per_page = 10
+        pages = []
+        for i in range(0, len(tag_list), tags_per_page):
+            page = tag_list[i : i + tags_per_page]
+            pages.append(
+                self.embed(
+                    description="\n".join(
+                        f"- **{tag['name']}** by <@{tag['user_id']}>" for tag in page
+                    )
+                ).set_author(
+                    name=f"search results for {query}", icon_url=ctx.guild.icon.url
+                )
+            )
+
+        await self.paginate(ctx, pages)
 
 
 async def setup(bot):
