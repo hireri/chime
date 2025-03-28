@@ -38,7 +38,7 @@ class Core(commands.Bot):
         self.session = aiohttp.ClientSession()
 
         # Initialize database connection
-        await db.setup()
+        await db.setup(self)
         logger.info("Database initialized")
 
         # Load all extensions from the exts directory

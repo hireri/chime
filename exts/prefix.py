@@ -187,5 +187,4 @@ class PrefixCommands(BaseCog):
 
 
 async def setup(bot):
-    await db.setup(bot)
     await bot.add_cog(PrefixCommands(bot))
