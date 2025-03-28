@@ -1,15 +1,26 @@
 import discord
 import asyncio
 import config
+import os
+import dotenv
+import traceback
+from groq import AsyncGroq
 from urllib.parse import urlparse
 from discord.ext import commands
 from core.basecog import BaseCog
 import googlesearch
 import duckduckgo_images_api
 from itertools import islice
+from core.database import db
+
+dotenv.load_dotenv()
 
 
 class Fun(BaseCog):
+    def __init__(self, bot):
+        self.tags_blocked = []
+        super().__init__(bot)
+
     def gen(self, generator, group_size=3):
         while True:
             group = list(islice(generator, group_size))
@@ -18,6 +29,20 @@ class Fun(BaseCog):
                 break
 
             yield group
+
+    @commands.Cog.listener()
+    async def on_ready(self):
+        if not self.tags_blocked:
+            tag_group = self.bot.get_command("tag")
+            self.tags_blocked = (
+                [
+                    name_or_alias
+                    for subcommand in tag_group.commands
+                    for name_or_alias in [subcommand.name] + subcommand.aliases
+                ]
+                if isinstance(tag_group, commands.Group)
+                else []
+            )
 
     async def search(self, query):
         results = await asyncio.to_thread(
@@ -90,6 +115,177 @@ class Fun(BaseCog):
         except:
             await ctx.send(embed=self.error_embed(description="no results found"))
         await ctx.message.remove_reaction(config.THINK_ICON, self.bot.user)
+
+    @commands.command(name="ai", brief="talk to ai")
+    async def ai(self, ctx, *, query):
+        await ctx.message.add_reaction(config.THINK_ICON)
+        try:
+            client = AsyncGroq(api_key=os.getenv("AI_KEY"))
+            response = await client.chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                messages=[{"role": "user", "content": query}],
+                max_completion_tokens=180,
+            )
+            await ctx.send(
+                embed=self.embed(
+                    description=response.choices[0].message.content
+                ).set_author(
+                    name="llama 3.3 70b",
+                    icon_url="https://images.seeklogo.com/logo-png/59/1/ollama-logo-png_seeklogo-593420.png",
+                )
+            )
+        except:
+            print(traceback.format_exc())
+            await ctx.send(embed=self.error_embed(description="the ai didn't respond"))
+        await ctx.message.remove_reaction(config.THINK_ICON, self.bot.user)
+
+    @commands.group(name="tag", invoke_without_command=True)
+    async def tag(self, ctx, tag_name: str):
+        """get a tag by its name"""
+        tag = await db.get_tag(guild_id=ctx.guild.id, name=tag_name)
+
+        if tag:
+            await db.use_tag(tag["id"])
+            await ctx.send(tag["content"])
+        else:
+            await ctx.send(embed=self.error_embed(description="tag not found"))
+
+    @tag.command(name="create", aliases=["new", "add", "update"])
+    async def create_tag(self, ctx, tag_name: str, *, description: str):
+        """create or update a tag"""
+        if tag_name in self.tags_blocked:
+            return await ctx.send(
+                embed=self.error_embed(description="invalid tag name")
+            )
+
+        tag = await db.get_tag(name=tag_name, guild_id=ctx.guild.id)
+
+        if tag:
+            if tag["user_id"] != ctx.author.id:
+                await ctx.send(
+                    self.warning_embed(description=f"tag **{tag_name}** already exists")
+                )
+                return
+            else:
+                await db.update_tag(tag, name=tag_name, content=description)
+                await ctx.send(
+                    self.success_embed(description=f"tag **{tag_name}** updated")
+                )
+        else:
+            tag = await db.create_tag(
+                name=tag_name,
+                content=description,
+                user_id=ctx.author.id,
+                guild_id=ctx.guild.id,
+            )
+            await ctx.send(
+                embed=self.success_embed(description=f"tag {tag_name} created")
+            )
+
+    @tag.command(name="delete", aliases=["remove", "del", "rm"])
+    async def delete_tag(self, ctx, tag_name: str):
+        """delete a tag if it belongs to the user"""
+        tag = await db.get_tag(name=tag_name, guild_id=ctx.guild.id)
+        if tag:
+            if tag["user_id"] != ctx.author.id:
+                await ctx.send(
+                    embed=self.warning_embed(
+                        description=f"tag **{tag_name}** does not belong to you"
+                    )
+                )
+                return
+            else:
+                await db.delete_tag(tag["id"])
+                await ctx.send(
+                    embed=self.success_embed(description=f"tag **{tag_name}** deleted")
+                )
+        else:
+            await ctx.send(
+                embed=self.error_embed(description=f"tag **{tag_name}** does not exist")
+            )
+
+    @tag.command(name="list")
+    async def list_tags(self, ctx, user: discord.Member | str | None = None):
+        """list all tags"""
+        tags = await db.get_tags(guild_id=ctx.guild.id)
+        name = f"tags in {ctx.guild.name}"
+        icon_url = ctx.guild.icon.url
+        if user:
+            tags = [tag for tag in tags if tag["user_id"] == user.id]
+            name = f"tags by {user.name}"
+            icon_url = user.display_avatar.url
+        if not tags:
+            await ctx.send(embed=self.error_embed(description="no tags found"))
+        else:
+            await ctx.send(
+                embed=self.embed(
+                    description="\n".join(f"**{tag['name']}**" for tag in tags)
+                ).set_author(name=name, icon_url=icon_url)
+            )
+
+    @tag.command(name="info")
+    async def tag_info(self, ctx, tag_name: str):
+        """get information about a tag"""
+        tag = await db.get_tag(name=tag_name, guild_id=ctx.guild.id)
+        if tag:
+            embed = discord.Embed(
+                description=f"info for `{tag_name}`.",
+                color=config.MAIN_COLOR,
+            )
+            tag_content = (
+                tag["content"]
+                if len(tag["content"]) < 1024
+                else tag["content"][:1024] + "..."
+            )
+            embed.add_field(name="tag contents", value=tag_content, inline=False)
+            embed.add_field(
+                name="created at",
+                value=discord.utils.format_dt(tag["created_at"], style="R"),
+                inline=True,
+            )
+            embed.add_field(
+                name="created by", value=f"<@{tag['user_id']}>", inline=True
+            )
+            embed.add_field(name="uses", value=f"{tag['uses']}", inline=True)
+            await ctx.send(embed=embed)
+
+        else:
+            await ctx.send(
+                embed=self.error_embed(
+                    description=f"tag {tag_name} not found",
+                    style=ResponseType.WARN,
+                )
+            )
+
+    @tag.command(name="rename", aliases=["rn"])
+    async def rename_tag(self, ctx, old_name: str, new_name: str):
+        """rename a tag"""
+        if new_name in ["create", "new", "delete", "remove", "del", "list", "info"]:
+            return await ctx.send(
+                embed=self.error_embed(description="invalid tag name")
+            )
+
+        tag = await self.get_tag(ctx, name=old_name, guild_id=ctx.guild.id)
+        if not tag:
+            return await ctx.send(embed=self.error_embed(description="tag not found"))
+
+        await db.update_tag(tag, name=new_name)
+        await ctx.send(
+            embed=self.success_embed(
+                description=f"tag **{old_name}** renamed to **{new_name}**"
+            )
+        )
+
+    @tag.command(name="reset", aliases=["deleteall", "delall", "rmall"])
+    @commands.has_permissions(manage_guild=True)
+    async def reset_tags(self, ctx):
+        """delete all tags"""
+        tags = await db.get_tags(guild_id=ctx.guild.id)
+        if not tags:
+            return await ctx.send(embed=self.error_embed(description="no tags found"))
+
+        await db.reset_tags(guild_id=ctx.guild.id)
+        await ctx.send(embed=self.success_embed(description="all tags deleted"))
 
 
 async def setup(bot):

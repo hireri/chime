@@ -2,7 +2,7 @@ import asyncio
 import asyncpg
 import logging
 import os
-from typing import Optional, Dict, Any, Union
+from typing import Optional, Dict, Any, Union, List
 from dotenv import load_dotenv
 
 logger = logging.getLogger(__name__)
@@ -61,48 +61,9 @@ class Database:
     async def _initialize_tables(self):
         """Initialize necessary database tables if they don't exist"""
         async with self._pool.acquire() as conn:
-            await conn.execute(
-                """
-                CREATE TABLE IF NOT EXISTS guilds (
-                    id BIGINT PRIMARY KEY,
-                    name VARCHAR(100) NOT NULL,
-                    joined_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-                    last_active TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-                )
-            """
-            )
-
-            await conn.execute(
-                """
-                CREATE TABLE IF NOT EXISTS users (
-                    id BIGINT PRIMARY KEY,
-                    username VARCHAR(100),
-                    discriminator VARCHAR(4),
-                    first_seen TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-                    last_active TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-                )
-            """
-            )
-
-            await conn.execute(
-                """
-                CREATE TABLE IF NOT EXISTS prefixes (
-                    id SERIAL PRIMARY KEY,
-                    entity_type VARCHAR(10) NOT NULL,
-                    entity_id BIGINT NOT NULL,
-                    prefix VARCHAR(10) NOT NULL,
-                    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-                    UNIQUE(entity_type, entity_id)
-                )
-            """
-            )
-
-            await conn.execute(
-                """
-                CREATE INDEX IF NOT EXISTS idx_prefixes_lookup 
-                ON prefixes(entity_type, entity_id)
-            """
-            )
+            with open("schema.sql", "r") as f:
+                schema = f.read()
+            await conn.execute(schema)
 
     async def close(self):
         """Close the database connection pool"""
@@ -240,6 +201,77 @@ class Database:
         """
         result = await self.fetchval(query, entity_type, entity_id)
         return result is not None
+
+    async def get_tags(self, guild_id: int) -> List[Dict[str, Any]]:
+        """Get all tags for a guild"""
+        query = """
+            SELECT * FROM tags WHERE guild_id = $1
+        """
+        return await self.fetch(query, guild_id)
+
+    async def get_tag(self, tag_id: str = None, name: str = None, guild_id: int = None):
+        """Get a tag by ID or name"""
+        if tag_id:
+            query = """
+                SELECT * FROM tags WHERE id = $1
+            """
+            return await self.fetchrow(query, tag_id)
+        elif name and guild_id:
+            query = """
+                SELECT * FROM tags WHERE name = $1 AND guild_id = $2
+            """
+            return await self.fetchrow(query, name, guild_id)
+        else:
+            return None
+
+    async def create_tag(self, name, content, user_id, guild_id):
+        """Create a new tag"""
+        query = """
+            INSERT INTO tags (name, content, user_id, guild_id, uses)
+            VALUES ($1, $2, $3, $4, 0)
+            RETURNING id
+        """
+        return await self.fetchval(query, name, content, user_id, guild_id)
+
+    async def use_tag(self, tag_id: str) -> None:
+        """Increment the uses of a tag"""
+        query = """
+            UPDATE tags
+            SET uses = uses + 1
+            WHERE id = $1
+            RETURNING id
+        """
+        return await self.execute(query, tag_id)
+
+    async def update_tag(self, tag, name=None, content=None) -> None:
+        """Update an existing tag"""
+        query = """
+            UPDATE tags
+            SET name = $1, content = $2
+            WHERE id = $3
+            RETURNING id
+        """
+        name = name or tag.name
+        content = content or tag.content
+        return await self.execute(query, name, content, tag.id)
+
+    async def delete_tag(self, tag_id: str) -> None:
+        """Delete a tag by ID"""
+        query = """
+            DELETE FROM tags
+            WHERE id = $1
+            RETURNING id
+        """
+        return await self.execute(query, tag_id)
+
+    async def reset_tags(self, guild_id: int) -> None:
+        """Delete all tags for a guild"""
+        query = """
+            DELETE FROM tags
+            WHERE guild_id = $1
+            RETURNING id
+        """
+        return await self.execute(query, guild_id)
 
 
 db = Database()

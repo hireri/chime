@@ -26,3 +26,17 @@ CREATE TABLE IF NOT EXISTS prefixes (
 
 -- Index for faster lookups
 CREATE INDEX IF NOT EXISTS idx_prefixes_lookup ON prefixes(entity_type, entity_id);
+
+CREATE TABLE IF NOT EXISTS tags (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    name TEXT NOT NULL,
+    content TEXT NOT NULL,
+    user_id BIGINT NOT NULL,
+    guild_id BIGINT NOT NULL,
+    uses INT NOT NULL DEFAULT 0,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    CONSTRAINT unique_name_guild UNIQUE (name, guild_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_tags_name_guild ON tags (name, guild_id);
