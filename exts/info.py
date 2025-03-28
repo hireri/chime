@@ -121,7 +121,7 @@ class Info(BaseCog):
     )
     async def boosters(self, ctx):
         """view all server boosters"""
-        boosters = [i.mention for i in ctx.guild.premium_subscribers]
+        boosters = [i for i in ctx.guild.premium_subscribers]
         if not boosters:
             return await ctx.reply(
                 embed=self.warning_embed(
@@ -129,16 +129,26 @@ class Info(BaseCog):
                 )
             )
 
-        embed = self.embed(
-            title="boosters", description=f"{' '.join(boosters)}", color=0xE668E2
-        )
-        embed.set_thumbnail(url=ctx.guild.icon.url)
-        await ctx.reply(embed=embed)
+        boosters_per_page = 10
+        pages = []
+        for i in range(0, len(boosters), boosters_per_page):
+            page = boosters[i : i + boosters_per_page]
+            pages.append(
+                self.embed(
+                    description="\n".join(
+                        f"- {booster.mention} since **{discord.utils.format_dt(booster.premium_since, style='R')}**"
+                        for booster in page
+                    )
+                )
+                .set_thumbnail(url=ctx.guild.icon.url)
+                .set_author(name=f"{ctx.guild.name}'s boosters")
+            )
+        await self.paginate(ctx, pages)
 
     @commands.command(name="bots", brief="view all bots in the server")
     async def bots(self, ctx):
         """view all bots in the server"""
-        bots = [i.mention for i in ctx.guild.members if i.bot]
+        bots = [i for i in ctx.guild.members if i.bot]
         if not bots:
             return await ctx.reply(
                 embed=self.warning_embed(
@@ -146,10 +156,18 @@ class Info(BaseCog):
                 )
             )
 
-        bots_text = " ".join(bots)
-        embed = self.embed(title="bots", description=bots_text)
-        embed.set_thumbnail(url=ctx.guild.icon.url)
-        await ctx.reply(embed=embed)
+        bots_per_page = 10
+        pages = []
+        for i in range(0, len(bots), bots_per_page):
+            page = bots[i : i + bots_per_page]
+            pages.append(
+                self.embed(
+                    description="\n".join(f"- {bot.mention} `{bot.id}`" for bot in page)
+                )
+                .set_thumbnail(url=ctx.guild.icon.url)
+                .set_author(name=f"{ctx.guild.name}'s bots")
+            )
+        await self.paginate(ctx, pages)
 
     @commands.command(name="channelinfo", brief="get info about a channel")
     async def channelinfo(self, ctx, channel: discord.TextChannel = None):
