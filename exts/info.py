@@ -293,7 +293,7 @@ class Info(BaseCog):
     @commands.group(name="emoji", brief="manage emojis", invoke_without_subcommand=True)
     async def emoji(self, ctx):
         if not ctx.invoked_subcommand:
-            await ctx.reply_help(ctx.command)
+            await ctx.send_help(ctx.command)
 
     @commands.command(name="userinfo", brief="get info about a user", aliases=["ui"])
     async def userinfo(self, ctx, user: discord.Member = None):
