@@ -334,6 +334,39 @@ class Fun(BaseCog):
 
         await self.paginate(ctx, pages)
 
+    @commands.command(name="urban", brief="get a random urban dictionary definition")
+    async def urban(self, ctx, *, query):
+        """get a random urban dictionary definition"""
+        async with self.bot.session.get(
+            f"https://api.urbandictionary.com/v0/define?term={query}"
+        ) as resp:
+            if resp.status != 200:
+                await ctx.send(
+                    embed=self.error_embed(description="could not get definition")
+                )
+                return
+            data = await resp.json()
+            pages = []
+            for definition in data["list"]:
+                page = self.embed(
+                    description=definition["definition"],
+                    color=config.MAIN_COLOR,
+                )
+                if definition["example"]:
+                    page.add_field(name="example", value=definition["example"])
+                if definition["author"]:
+                    page.set_footer(
+                        text=f"by {definition['author']}, {definition['thumbs_up']} likes",
+                    )
+                if definition["permalink"]:
+                    page.set_author(
+                        name=definition["word"],
+                        url=definition["permalink"],
+                        icon_url="https://media.licdn.com/dms/image/v2/D560BAQGlykJwWd7v-g/company-logo_200_200/company-logo_200_200/0/1718946315384/urbandictionary_logo?e=2147483647&v=beta&t=jnPuu32SKBWZsFOfOHz7KugJq0S2UARN8CL0wOAyyro",
+                    )
+                pages.append(page)
+            await self.paginate(ctx, pages)
+
 
 async def setup(bot):
     await bot.add_cog(Fun(bot))
