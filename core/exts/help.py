@@ -63,7 +63,21 @@ class MyHelpCommand(commands.HelpCommand):
 
         select.callback = select_callback
         view = discord.ui.View().add_item(select)
-        await self.get_destination().send(embed=embeds[0], view=view)
+        home_embed = discord.Embed(
+            title="command list",
+            description=f"""welcome to #stinkcord 💗
+- {config.LINK_ICON} [support](https://discord.gg/chime)
+- {config.LINK_ICON} [command list](https://google.com)
+-# navigate through categories using the dropdown""",
+            color=config.MAIN_COLOR,
+        )
+        home_embed.set_author(
+            name=self.context.bot.user.name, icon_url=self.context.bot.user.avatar.url
+        )
+        home_embed.set_footer(
+            text=f"{len(self.context.bot.commands)} commands, .help <cmd> for command help"
+        )
+        await self.get_destination().send(embed=home_embed, view=view)
 
     async def send_cog_help(self, cog):
         config.config.reload()
