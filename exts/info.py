@@ -47,25 +47,123 @@ class Info(BaseCog):
     @commands.command(name="avatar", brief="get an user's avatar", aliases=["av"])
     async def avatar(self, ctx, user: discord.Member = None):
         user = user or ctx.author
-        embed = self.embed(description=f"**{user.name}**'s avatar")
-        embed.set_image(url=user.avatar.url)
-        await ctx.reply(embed=embed)
+        embed = self.embed()
+        embed.set_author(name=f"{user.name}'s avatar", icon_url=user.display_avatar.url)
+        embed.set_image(url=user.display_avatar.url)
+        view = None
+        if user.guild_avatar:
+
+            class AvatarControls(discord.ui.View):
+                def __init__(self, user):
+                    self.selected = user.guild_avatar
+                    super().__init__()
+
+                    self.add_item(
+                        discord.ui.Button(label="main avatar", custom_id="main")
+                    )
+                    self.add_item(
+                        discord.ui.Button(
+                            label="server avatar", custom_id="server", disabled=True
+                        )
+                    )
+
+                    for child in self.children:
+                        child.callback = self.button_callback
+
+                async def button_callback(self, interaction: discord.Interaction):
+                    button_id = interaction.data["custom_id"]
+
+                    if interaction.user.id != ctx.author.id:
+                        await interaction.response.send_message(
+                            embed=self.error_embed(
+                                "you cannot use these controls as you didn't invoke the command"
+                            ),
+                            ephemeral=True,
+                        )
+                        return
+
+                    if button_id == "main":
+                        self.selected = user.avatar
+                        self.children[0].disabled = True
+                        self.children[1].disabled = False
+
+                    elif button_id == "server":
+                        self.children[0].disabled = False
+                        self.children[1].disabled = True
+                        self.selected = user.guild_avatar
+
+                    await interaction.response.edit_message(
+                        embed=embed.set_image(url=self.selected.url), view=self
+                    )
+
+            view = AvatarControls(user)
+        await ctx.reply(embed=embed, view=view)
 
     @commands.command(name="banner", brief="get an user's banner", aliases=["bn"])
     async def banner(self, ctx, user: discord.Member = None):
         user = user or ctx.author
-        user = await self.bot.fetch_user(user.id)
+        user = await ctx.guild.fetch_member(user.id)
+        view = None
 
-        if not user.banner:
+        if not user.banner and not user.guild_banner:
             return await ctx.reply(
                 embed=self.error_embed(
                     description="no banner set",
                 )
             )
 
-        embed = self.embed(title=f"{user.name}'s banner")
-        embed.set_image(url=user.banner.url)
-        await ctx.reply(embed=embed)
+        embed = self.embed()
+        embed.set_image(url=user.banner.url if user.banner else user.guild_banner.url)
+        embed.set_author(name=f"{user.name}'s banner", icon_url=user.display_avatar.url)
+
+        if user.guild_banner:
+
+            class BannerControls(discord.ui.View):
+                def __init__(self, user):
+                    self.selected = user.guild_banner
+                    super().__init__()
+
+                    if user.banner:
+                        self.add_item(
+                            discord.ui.Button(label="main banner", custom_id="main")
+                        )
+                    self.add_item(
+                        discord.ui.Button(
+                            label="server banner", custom_id="server", disabled=True
+                        )
+                    )
+
+                    for child in self.children:
+                        child.callback = self.button_callback
+
+                async def button_callback(self, interaction: discord.Interaction):
+                    button_id = interaction.data["custom_id"]
+
+                    if interaction.user.id != ctx.author.id:
+                        await interaction.response.send_message(
+                            embed=self.error_embed(
+                                "you cannot use these controls as you didn't invoke the command"
+                            ),
+                            ephemeral=True,
+                        )
+                        return
+
+                    if button_id == "main":
+                        self.selected = user.banner
+                        self.children[0].disabled = True
+                        self.children[1].disabled = False
+
+                    elif button_id == "server":
+                        self.selected = user.guild_banner
+                        self.children[0].disabled = False
+                        self.children[1].disabled = True
+
+                    await interaction.response.edit_message(
+                        embed=embed.set_image(url=self.selected.url), view=self
+                    )
+
+            view = BannerControls(user)
+        await ctx.reply(embed=embed, view=view)
 
     @commands.command(
         name="guildavatar",
