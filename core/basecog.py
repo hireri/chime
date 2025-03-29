@@ -148,7 +148,7 @@ class BaseCog(commands.Cog):
 
                 if interaction.user.id != ctx.author.id:
                     await interaction.response.send_message(
-                        self.error_embed(
+                        embed=self.error_embed(
                             "you cannot use these controls as you didn't invoke the command"
                         ),
                         ephemeral=True,
