@@ -1,17 +1,19 @@
-import discord
 import asyncio
-import config
 import os
-import dotenv
-import traceback
 import random
-from groq import AsyncGroq
-from urllib.parse import urlparse
-from discord.ext import commands
-from core.basecog import BaseCog
-import googlesearch
-import duckduckgo_images_api
+import traceback
 from itertools import islice
+from urllib.parse import urlparse
+
+import discord
+import dotenv
+import duckduckgo_images_api
+import googlesearch
+from discord.ext import commands
+from groq import AsyncGroq
+
+import config
+from core.basecog import BaseCog
 from core.database import db
 
 dotenv.load_dotenv()
@@ -105,7 +107,7 @@ class Fun(BaseCog):
         if results:
             return await self.paginate(ctx, results)
 
-        await ctx.send(embed=self.error_embed(description="no results found"))
+        await ctx.reply(embed=self.error_embed(description="no results found"))
 
     @commands.command(name="image", brief="search for an image")
     async def image(self, ctx, *, query):
@@ -113,8 +115,8 @@ class Fun(BaseCog):
         try:
             results = await self.image_search(query)
             await self.paginate(ctx, results)
-        except:
-            await ctx.send(embed=self.error_embed(description="no results found"))
+        except Exception:
+            await ctx.reply(embed=self.error_embed(description="no results found"))
         await ctx.message.remove_reaction(config.THINK_ICON, self.bot.user)
 
     @commands.command(name="ai", brief="talk to ai")
@@ -122,22 +124,37 @@ class Fun(BaseCog):
         await ctx.message.add_reaction(config.THINK_ICON)
         try:
             client = AsyncGroq(api_key=os.getenv("AI_KEY"))
+            messages = [
+                {
+                    "role": "user",
+                    "content": [{"type": "text", "text": query}],
+                }
+            ]
+            if ctx.message.attachments and ctx.message.attachments[
+                0
+            ].content_type.startswith("image/"):
+                messages[0]["content"].append(
+                    {
+                        "type": "image_url",
+                        "image_url": {"url": ctx.message.attachments[0].url},
+                    }
+                )
             response = await client.chat.completions.create(
-                model="llama-3.3-70b-versatile",
-                messages=[{"role": "user", "content": query}],
-                max_completion_tokens=180,
+                model="llama-3.2-11b-vision-preview",
+                messages=messages,
+                max_completion_tokens=250,
             )
-            await ctx.send(
+            await ctx.reply(
                 embed=self.embed(
                     description=response.choices[0].message.content
                 ).set_author(
-                    name="llama 3.3 70b",
+                    name="llama 3.2 11b vision preview",
                     icon_url="https://images.seeklogo.com/logo-png/59/1/ollama-logo-png_seeklogo-593420.png",
                 )
             )
-        except:
+        except Exception:
             print(traceback.format_exc())
-            await ctx.send(embed=self.error_embed(description="the ai didn't respond"))
+            await ctx.reply(embed=self.error_embed(description="the ai didn't respond"))
         await ctx.message.remove_reaction(config.THINK_ICON, self.bot.user)
 
     @commands.group(name="tag", aliases=["tags"], invoke_without_command=True)
@@ -147,15 +164,15 @@ class Fun(BaseCog):
 
         if tag:
             await db.use_tag(tag["id"])
-            await ctx.send(tag["content"])
+            await ctx.reply(tag["content"])
         else:
-            await ctx.send(embed=self.error_embed(description="tag not found"))
+            await ctx.reply(embed=self.error_embed(description="tag not found"))
 
     @tag.command(name="create", aliases=["new", "add", "update"])
     async def create_tag(self, ctx, tag_name: str, *, description: str):
         """create or update a tag"""
         if tag_name in self.tags_blocked:
-            return await ctx.send(
+            return await ctx.reply(
                 embed=self.error_embed(description="invalid tag name")
             )
 
@@ -163,13 +180,13 @@ class Fun(BaseCog):
 
         if tag:
             if tag["user_id"] != ctx.author.id:
-                await ctx.send(
+                await ctx.reply(
                     self.warning_embed(description=f"tag **{tag_name}** already exists")
                 )
                 return
             else:
                 await db.update_tag(tag, name=tag_name, content=description)
-                await ctx.send(
+                await ctx.reply(
                     self.success_embed(description=f"tag **{tag_name}** updated")
                 )
         else:
@@ -179,7 +196,7 @@ class Fun(BaseCog):
                 user_id=ctx.author.id,
                 guild_id=ctx.guild.id,
             )
-            await ctx.send(
+            await ctx.reply(
                 embed=self.success_embed(description=f"tag {tag_name} created")
             )
 
@@ -189,7 +206,7 @@ class Fun(BaseCog):
         tag = await db.get_tag(name=tag_name, guild_id=ctx.guild.id)
         if tag:
             if tag["user_id"] != ctx.author.id:
-                await ctx.send(
+                await ctx.reply(
                     embed=self.warning_embed(
                         description=f"tag **{tag_name}** does not belong to you"
                     )
@@ -197,11 +214,11 @@ class Fun(BaseCog):
                 return
             else:
                 await db.delete_tag(tag["id"])
-                await ctx.send(
+                await ctx.reply(
                     embed=self.success_embed(description=f"tag **{tag_name}** deleted")
                 )
         else:
-            await ctx.send(
+            await ctx.reply(
                 embed=self.error_embed(description=f"tag **{tag_name}** does not exist")
             )
 
@@ -216,7 +233,7 @@ class Fun(BaseCog):
             name = f"tags by {user.name}"
             icon_url = user.display_avatar.url
         if not tags:
-            await ctx.send(embed=self.error_embed(description="no tags found"))
+            await ctx.reply(embed=self.error_embed(description="no tags found"))
         else:
             tags_per_page = 10
             pages = []
@@ -256,13 +273,12 @@ class Fun(BaseCog):
                 name="created by", value=f"<@{tag['user_id']}>", inline=True
             )
             embed.add_field(name="uses", value=f"{tag['uses']}", inline=True)
-            await ctx.send(embed=embed)
+            await ctx.reply(embed=embed)
 
         else:
-            await ctx.send(
+            await ctx.reply(
                 embed=self.error_embed(
                     description=f"tag {tag_name} not found",
-                    style=ResponseType.WARN,
                 )
             )
 
@@ -270,16 +286,16 @@ class Fun(BaseCog):
     async def rename_tag(self, ctx, old_name: str, new_name: str):
         """rename a tag"""
         if new_name in ["create", "new", "delete", "remove", "del", "list", "info"]:
-            return await ctx.send(
+            return await ctx.reply(
                 embed=self.error_embed(description="invalid tag name")
             )
 
         tag = await self.get_tag(ctx, name=old_name, guild_id=ctx.guild.id)
         if not tag:
-            return await ctx.send(embed=self.error_embed(description="tag not found"))
+            return await ctx.reply(embed=self.error_embed(description="tag not found"))
 
         await db.update_tag(tag, name=new_name)
-        await ctx.send(
+        await ctx.reply(
             embed=self.success_embed(
                 description=f"tag **{old_name}** renamed to **{new_name}**"
             )
@@ -291,32 +307,32 @@ class Fun(BaseCog):
         """delete all tags"""
         tags = await db.get_tags(guild_id=ctx.guild.id)
         if not tags:
-            return await ctx.send(embed=self.error_embed(description="no tags found"))
+            return await ctx.reply(embed=self.error_embed(description="no tags found"))
 
         await db.reset_tags(guild_id=ctx.guild.id)
-        await ctx.send(embed=self.success_embed(description="all tags deleted"))
+        await ctx.reply(embed=self.success_embed(description="all tags deleted"))
 
     @tag.command(name="random", aliases=["rand"])
     async def random_tag(self, ctx):
         """get a random tag"""
         tags = await db.get_tags(guild_id=ctx.guild.id)
         if not tags:
-            return await ctx.send(embed=self.error_embed(description="no tags found"))
+            return await ctx.reply(embed=self.error_embed(description="no tags found"))
 
         tag = random.choice(tags)
         await db.use_tag(tag["id"])
-        await ctx.send(f"**{tag['name']}**\n> {tag['content']}")
+        await ctx.reply(f"**{tag['name']}**\n> {tag['content']}")
 
     @tag.command(name="search", aliases=["find"])
     async def search_tag(self, ctx, *, query):
         """search for a tag"""
         tags = await db.get_tags(guild_id=ctx.guild.id)
         if not tags:
-            return await ctx.send(embed=self.error_embed(description="no tags found"))
+            return await ctx.reply(embed=self.error_embed(description="no tags found"))
 
         tag_list = [tag for tag in tags if query in tag["name"].lower()]
         if not tag_list:
-            return await ctx.send(embed=self.error_embed(description="tag not found"))
+            return await ctx.reply(embed=self.error_embed(description="tag not found"))
 
         tags_per_page = 10
         pages = []
@@ -341,7 +357,7 @@ class Fun(BaseCog):
             f"https://api.urbandictionary.com/v0/define?term={query}"
         ) as resp:
             if resp.status != 200:
-                await ctx.send(
+                await ctx.reply(
                     embed=self.error_embed(description="could not get definition")
                 )
                 return

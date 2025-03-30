@@ -1,16 +1,14 @@
-import discord
-from discord.ext import commands
 import datetime
-import platform
-from urllib.parse import urlparse
-import psutil
-import os, sys
-import re
-import config
-import timeago
-from core.basecog import BaseCog
 from collections import OrderedDict
+from urllib.parse import urlparse
+
+import discord
 import emojis
+import timeago
+from discord.ext import commands
+
+import config
+from core.basecog import BaseCog
 
 
 class Info(BaseCog):
@@ -458,7 +456,7 @@ class Info(BaseCog):
         try:
             parsed_url = urlparse(text)
             return all([parsed_url.scheme, parsed_url.netloc])
-        except:
+        except Exception:
             return False
 
     @emoji.command(
@@ -468,7 +466,7 @@ class Info(BaseCog):
     async def emoji_remove(self, ctx, emoji: str):
         try:
             emoji = discord.utils.get(ctx.guild.emojis, name=emoji.split(":")[1])
-        except:
+        except Exception:
             return await ctx.reply(
                 embed=self.error_embed(description="emoji appears invalid")
             )
@@ -620,7 +618,7 @@ class Info(BaseCog):
 
                 await self.paginate(ctx, pages, compact=True)
 
-            except Exception as e:
+            except Exception:
                 return await ctx.reply(
                     embed=self.error_embed(description="failed to get definition")
                 )

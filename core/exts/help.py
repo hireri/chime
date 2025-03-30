@@ -1,7 +1,8 @@
-from typing import TYPE_CHECKING
 import logging
+
 import discord
 from discord.ext import commands
+
 import config
 
 logger = logging.getLogger(__name__)

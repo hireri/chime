@@ -1,15 +1,15 @@
-import re
+import logging
 import os
+import re
 from datetime import datetime, timedelta
 from typing import Dict, List, Tuple
 from urllib.parse import urlparse, urlunparse
-import dotenv
 
 import discord
-import logging
-import config
+import dotenv
 from discord.ext import commands
 
+import config
 from core.basecog import BaseCog
 
 logger = logging.getLogger(__name__)
@@ -45,8 +45,9 @@ class Snipe(BaseCog):
         if "tenor.com" in gif_url:
             gif_id = gif_url.split("-")[-1]
             async with self.bot.session.get(
-                f"https://tenor.googleapis.com/v2/posts?ids={
-                    gif_id}&key={os.getenv("TENOR")}"
+                f"https://tenor.googleapis.com/v2/posts?ids={gif_id}&key={
+                    os.getenv('TENOR')
+                }"
             ) as response:
                 if response.status == 200:
                     data = await response.json()
@@ -90,11 +91,11 @@ class Snipe(BaseCog):
         embeds = [base_embed]
         for i, img_url in enumerate(all_images):
             if i % 4 == 0 and i > 0:
-
                 new_base_embed = discord.Embed(
-                    url=f"https://discord.com/images/{i//4}",
-                    description=f"Additional images ({
-                        i+1}-{min(i+4, len(all_images))})",
+                    url=f"https://discord.com/images/{i // 4}",
+                    description=f"Additional images ({i + 1}-{
+                        min(i + 4, len(all_images))
+                    })",
                     color=config.MAIN_COLOR,
                 )
                 embeds.append(new_base_embed)
@@ -157,8 +158,9 @@ class Snipe(BaseCog):
             if datetime.utcnow() - t <= self.ttl
         )
         embed = discord.Embed(
-            description=f"{user.mention} removed {
-                reaction.emoji} from [this message]({message.jump_url})",
+            description=f"{user.mention} removed {reaction.emoji} from [this message]({
+                message.jump_url
+            })",
             url="https://discord.com",
             color=config.MAIN_COLOR,
         )
@@ -210,8 +212,7 @@ class Snipe(BaseCog):
             grouped_reactions[str(reaction.emoji)].add(user.mention)
 
         embed = discord.Embed(
-            description=f"Message: {
-                message.jump_url}",
+            description=f"Message: {message.jump_url}",
             url="https://discord.com",
             color=config.MAIN_COLOR,
         )

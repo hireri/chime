@@ -1,9 +1,10 @@
+import datetime
+
 import discord
 from discord.ext import commands
-from discord import Permissions
-from core.basecog import BaseCog
-import datetime
+
 import config
+from core.basecog import BaseCog
 
 
 class Guild(BaseCog):
@@ -187,7 +188,7 @@ class Guild(BaseCog):
         else:
             await ctx.reply(
                 embed=self.success_embed(
-                    description=f"slowmode **disabled** for all channels"
+                    description="slowmode **disabled** for all channels"
                 )
             )
 
@@ -201,7 +202,7 @@ class Guild(BaseCog):
             deleted = await ctx.channel.purge(limit=5)
             await ctx.send(
                 embed=self.success_embed(
-                    description=f"Deleted **{len(deleted)}** messages"
+                    description=f"deleted **{len(deleted)}** messages"
                 ),
                 delete_after=10,
             )
@@ -279,8 +280,6 @@ class Guild(BaseCog):
             if deleted_count >= limit:
                 break
 
-            remaining = limit - deleted_count
-
             async for message in channel.history(limit=search_limit):
                 if check_message(message):
                     messages_to_delete.append(message)
@@ -339,13 +338,13 @@ class Guild(BaseCog):
             perms.update(send_messages=True)
             await role.edit(permissions=perms)
             await ctx.reply(
-                embed=self.success_embed(description=f"the server is now **unlocked**")
+                embed=self.success_embed(description="the server is now **unlocked**")
             )
         else:
             perms.update(send_messages=False)
             await role.edit(permissions=perms)
             await ctx.reply(
-                embed=self.success_embed(description=f"the server is in **lockdown**")
+                embed=self.success_embed(description="the server is in **lockdown**")
             )
 
 

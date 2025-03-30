@@ -1,8 +1,8 @@
-import asyncio
-import asyncpg
 import logging
 import os
-from typing import Optional, Dict, Any, Union, List
+from typing import Any, Dict, List, Optional
+
+import asyncpg
 from dotenv import load_dotenv
 
 logger = logging.getLogger(__name__)

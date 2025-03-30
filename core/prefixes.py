@@ -1,9 +1,11 @@
+import logging
+from typing import Callable, Dict, List, Optional
+
 import discord
 from discord.ext import commands
-import asyncio
-import logging
+
 import config
-from typing import List, Union, Optional, Dict, Callable
+
 from .database import db
 
 logger = logging.getLogger(__name__)

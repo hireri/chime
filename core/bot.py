@@ -1,15 +1,13 @@
+import datetime
+import logging
+import os
+
+import aiohttp
 import discord
 from discord.ext import commands
-import logging
-import datetime
-import aiohttp
-import traceback
-import sys
-import os
-import config
-from config import PREFIX
-from .prefixes import get_prefix_callable
+
 from .database import db
+from .prefixes import get_prefix_callable
 
 logger = logging.getLogger(__name__)
 

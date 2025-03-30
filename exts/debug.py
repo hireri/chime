@@ -1,9 +1,12 @@
-import discord
-from discord.ext import commands
 import datetime
+import os
 import platform
+import sys
+
+import discord
 import psutil
-import os, sys
+from discord.ext import commands
+
 from config import config
 from core.basecog import BaseCog
 
@@ -65,9 +68,7 @@ class Debug(BaseCog):
             color_overview.add_field(
                 name=f"{color_name}",
                 value=(
-                    f"Hex: `{hex(color_value)}`\n"
-                    f"Int: `{color_value}`\n"
-                    f"[■]({color_url})"
+                    f"Hex: `{hex(color_value)}`\nInt: `{color_value}`\n[■]({color_url})"
                 ),
                 inline=True,
             )
@@ -227,7 +228,7 @@ class Debug(BaseCog):
             cpu_freq = psutil.cpu_freq()
             if cpu_freq:
                 cpu_info += f"Frequency: `{cpu_freq.current:.2f} MHz`"
-        except:
+        except Exception:
             pass
 
         sys_details_embed.add_field(name="cpu", value=cpu_info, inline=True)
@@ -356,9 +357,7 @@ class Debug(BaseCog):
 
         config_embed.add_field(
             name="prefix",
-            value=(
-                f"Current: `{config.PREFIX}`\n" f"Usage example: `{config.PREFIX}help`"
-            ),
+            value=(f"Current: `{config.PREFIX}`\nUsage example: `{config.PREFIX}help`"),
             inline=True,
         )
 
@@ -393,7 +392,7 @@ class Debug(BaseCog):
                 config_pages.append(content_embed)
             else:
                 page_embed = self.embed(
-                    title=f"config debug: file content (part {i+1})"
+                    title=f"config debug: file content (part {i + 1})"
                 )
                 page_embed.set_thumbnail(url=None)
                 page_embed.description = f"```ini\n{chunk}\n```"

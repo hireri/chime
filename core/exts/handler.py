@@ -1,13 +1,11 @@
-import datetime
-import sys
 import traceback
 from typing import Optional, Union
 
 import discord
 from discord.ext import commands
 
-from core.basecog import BaseCog
 import config
+from core.basecog import BaseCog
 
 
 class ErrorHandler(BaseCog):
@@ -162,7 +160,7 @@ class ErrorHandler(BaseCog):
 
             await self._send_error_message(
                 ctx,
-                f"an unexpected error occurred while executing this command. please try again later.",
+                "an unexpected error occurred while executing this command. please try again later.",
                 should_trace=is_owner,
                 exception=error,
             )
@@ -223,7 +221,7 @@ class ErrorHandler(BaseCog):
 
             await self._send_error_message(
                 interaction,
-                f"an unexpected error occurred while executing this command. please try again later.",
+                "an unexpected error occurred while executing this command. please try again later.",
                 should_trace=is_owner,
                 exception=error,
             )
@@ -284,7 +282,7 @@ class ErrorHandler(BaseCog):
                 chunks = [tb_text[i : i + 1000] for i in range(0, len(tb_text), 1000)]
                 for i, chunk in enumerate(chunks):
                     embed.add_field(
-                        name=f"traceback part {i+1}/{len(chunks)}",
+                        name=f"traceback part {i + 1}/{len(chunks)}",
                         value=f"```py\n{chunk}\n```",
                         inline=False,
                     )

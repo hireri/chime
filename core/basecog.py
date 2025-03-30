@@ -1,12 +1,9 @@
+import logging
+from typing import Dict, List
+
 import discord
 from discord.ext import commands
-import logging
-import datetime
-import os
-import sys
-import platform
-import psutil
-from typing import Dict, List, Optional, Union, Any
+
 import config
 
 
@@ -221,7 +218,7 @@ class BaseCog(commands.Cog):
                         for child in self.children:
                             child.disabled = True
                         await message.edit(view=self)
-                    except:
+                    except Exception:
                         pass
 
         view = PaginationView(pages)
@@ -365,7 +362,7 @@ class BaseCog(commands.Cog):
                         for child in self.children:
                             child.disabled = True
                         await message.edit(view=self)
-                    except:
+                    except Exception:
                         pass
 
         class NavigationButton(discord.ui.Button):
