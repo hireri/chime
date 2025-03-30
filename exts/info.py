@@ -323,44 +323,44 @@ class Info(BaseCog):
         """get info about a server"""
         guild = ctx.guild
 
-        banner = f"[URL]({guild.banner.url})" if guild.banner else "Unset"
-        splash = f"[URL]({guild.splash.url})" if guild.splash else "Unset"
-        icon = f"[URL]({guild.icon.url})" if guild.icon else "Unset"
+        banner = f"[url]({guild.banner.url})" if guild.banner else "unset"
+        splash = f"[url]({guild.splash.url})" if guild.splash else "unset"
+        icon = f"[url]({guild.icon.url})" if guild.icon else "unset"
 
         embed = self.embed(
             description=f"id: `{guild.id}`\n{guild.description}", color=guild.me.color
         )
         embed.set_author(name=f"{guild.name}'s info", icon_url=guild.icon.url)
         embed.add_field(
-            name="Created at",
+            name="created at",
             value=f"<t:{int(guild.created_at.timestamp())}:D> | **{timeago.format(guild.created_at.replace(tzinfo=None), datetime.datetime.utcnow())}**",
             inline=False,
         )
         embed.add_field(
-            name="Owner",
+            name="owner",
             value=f"{guild.owner.mention}",
             inline=True,
         )
         embed.add_field(
-            name=f"Members: **{guild.member_count}**",
+            name=f"members: **{guild.member_count}**",
             value=f"├ bots: **{len([i for i in guild.members if i.bot])}**\n└ users: **{len([i for i in guild.members if not i.bot])}**",
             inline=True,
         )
         embed.add_field(
-            name="Info",
-            value=f"├ Verification: **{guild.verification_level}**\n├ Boosts: **{guild.premium_subscription_count}**\n└ Level **{guild.premium_tier}**",
+            name="info",
+            value=f"├ verification: **{guild.verification_level}**\n├ boosts: **{guild.premium_subscription_count}**\n└ level **{guild.premium_tier}**",
         )
         embed.add_field(
-            name=f"Channels: **{len(guild.channels)}**",
-            value=f"├ Categories: **{len([i for i in guild.categories])}**\n├ Text: **{len([i for i in guild.text_channels])}**\n└ Voice: **{len([i for i in guild.voice_channels])}**",
+            name=f"channels: **{len(guild.channels)}**",
+            value=f"├ categories: **{len([i for i in guild.categories])}**\n├ text: **{len([i for i in guild.text_channels])}**\n└ voice: **{len([i for i in guild.voice_channels])}**",
         )
         embed.add_field(
-            name="Stats",
-            value=f"├ Roles: **{len(guild.roles)}**\n├ Emojis: **{len(guild.emojis)}**\n└ Boosters: **{len([i for i in guild.premium_subscribers])}**",
+            name="stats",
+            value=f"├ roles: **{len(guild.roles)}**\n├ emojis: **{len(guild.emojis)}**\n└ boosters: **{len([i for i in guild.premium_subscribers])}**",
         )
         embed.add_field(
-            name="Assets",
-            value=f"├ Icon: **{icon}**\n├ Banner: **{banner}**\n└ Splash: **{splash}**",
+            name="assets",
+            value=f"├ icon: **{icon}**\n├ banner: **{banner}**\n└ splash: **{splash}**",
         )
         embed.set_thumbnail(url=guild.icon.url)
         await ctx.reply(embed=embed)
@@ -654,11 +654,17 @@ class Info(BaseCog):
                     description=f"no users with the role {role.name}",
                 )
             )
-        await ctx.reply(
-            embed=self.embed(
-                description=" ".join([user.mention for user in users]),
-            ).set_author(name=f"users for @{role.name}")
-        )
+
+        users_per_page = 10
+        pages = []
+        for i in range(0, len(users), users_per_page):
+            page = users[i : i + users_per_page]
+            pages.append(
+                self.embed(
+                    description="\n".join([user.mention for user in page]),
+                ).set_author(name=f"users for @{role.name}")
+            )
+        await self.paginate(ctx, pages)
 
     @commands.command(
         name="membercount", brief="shows member count", aliases=["members", "mc"]
