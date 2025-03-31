@@ -77,17 +77,18 @@ class BaseCog(commands.Cog):
         """send paginated embeds with navigation buttons"""
         if not pages:
             return await ctx.reply(
-                embed=super().self.error_embed(description="no pages to display")
+                embed=self.error_embed(description="no pages to display")
             )
 
         if len(pages) == 1:
             return await ctx.reply(embed=pages[0])
 
         class PaginationView(discord.ui.View):
-            def __init__(self, pages):
+            def __init__(self, pages, outer):
                 super().__init__(timeout=timeout)
                 self.pages = pages
                 self.current_page = 0
+                self.outer = outer
 
                 if not compact:
                     self.add_item(
@@ -145,8 +146,8 @@ class BaseCog(commands.Cog):
 
                 if interaction.user.id != ctx.author.id:
                     await interaction.response.send_message(
-                        embed=super().self.error_embed(
-                            "you cannot use these controls as you didn't invoke the command"
+                        embed=self.outer.error_embed(
+                            description="you cannot use these controls"
                         ),
                         ephemeral=True,
                     )
@@ -221,7 +222,7 @@ class BaseCog(commands.Cog):
                     except Exception:
                         pass
 
-        view = PaginationView(pages)
+        view = PaginationView(pages, self)
         view.message = await ctx.reply(embed=pages[0], view=view)
         return view.message
 
@@ -272,11 +273,12 @@ class BaseCog(commands.Cog):
             )
 
         class CombinedView(discord.ui.View):
-            def __init__(self, category_pages_dict):
+            def __init__(self, category_pages_dict, outer):
                 super().__init__(timeout=timeout)
                 self.category_pages = category_pages_dict
                 self.current_category = next(iter(category_pages_dict.keys()))
                 self.current_page = 0
+                self.outer = outer
 
                 self.select = discord.ui.Select(
                     placeholder=placeholder,
@@ -303,6 +305,7 @@ class BaseCog(commands.Cog):
                             style=discord.ButtonStyle.gray,
                             custom_id="first",
                             row=1,
+                            outer=self.outer,
                         )
                     )
 
@@ -312,6 +315,7 @@ class BaseCog(commands.Cog):
                             style=discord.ButtonStyle.gray,
                             custom_id="prev",
                             row=1,
+                            outer=self.outer,
                         )
                     )
 
@@ -323,6 +327,7 @@ class BaseCog(commands.Cog):
                             style=discord.ButtonStyle.primary,
                             custom_id="page",
                             row=1,
+                            outer=self.outer,
                         )
                     )
 
@@ -332,6 +337,7 @@ class BaseCog(commands.Cog):
                             style=discord.ButtonStyle.gray,
                             custom_id="next",
                             row=1,
+                            outer=self.outer,
                         )
                     )
 
@@ -341,10 +347,19 @@ class BaseCog(commands.Cog):
                             style=discord.ButtonStyle.gray,
                             custom_id="last",
                             row=1,
+                            outer=self.outer,
                         )
                     )
 
             async def dropdown_callback(self, interaction: discord.Interaction):
+                if interaction.user.id != ctx.author.id:
+                    await interaction.response.send_message(
+                        embed=self.outer.error_embed(
+                            description="you cannot use these controls"
+                        ),
+                        ephemeral=True,
+                    )
+                    return
                 self.current_category = self.select.values[0]
                 self.current_page = 0
 
@@ -366,7 +381,20 @@ class BaseCog(commands.Cog):
                         pass
 
         class NavigationButton(discord.ui.Button):
+            def __init__(self, outer, **kwargs):
+                super().__init__(**kwargs)
+                self.outer = outer
+
             async def callback(self, interaction: discord.Interaction):
+                if interaction.user.id != ctx.author.id:
+                    await interaction.response.send_message(
+                        embed=self.outer.error_embed(
+                            description="you cannot use these controls"
+                        ),
+                        ephemeral=True,
+                    )
+                    return
+
                 view = self.view
                 pages = view.category_pages[view.current_category]
 
@@ -388,7 +416,19 @@ class BaseCog(commands.Cog):
                 )
 
         class PageButton(discord.ui.Button):
+            def __init__(self, outer, **kwargs):
+                super().__init__(**kwargs)
+                self.outer = outer
+
             async def callback(self, interaction: discord.Interaction):
+                if interaction.user.id != ctx.author.id:
+                    await interaction.response.send_message(
+                        embed=self.outer.error_embed(
+                            description="you cannot use these controls"
+                        ),
+                        ephemeral=True,
+                    )
+                    return
                 view = self.view
                 pages = view.category_pages[view.current_category]
 
@@ -423,6 +463,6 @@ class BaseCog(commands.Cog):
         first_category = next(iter(category_pages.keys()))
         first_page = category_pages[first_category][0]
 
-        view = CombinedView(category_pages)
+        view = CombinedView(category_pages, self)
         view.message = await ctx.reply(embed=first_page, view=view)
         return view.message

@@ -142,6 +142,14 @@ class MyHelpCommand(commands.HelpCommand):
         )
 
         async def select_callback(interaction: discord.Interaction):
+            if interaction.user.id != self.context.author.id:
+                await interaction.response.send_message(
+                    embed=self.outer.error_embed(
+                        description="you cannot use these controls"
+                    ),
+                    ephemeral=True,
+                )
+                return
             try:
                 subcommand = group.get_command(select.values[0])
                 view = discord.ui.View().add_item(select)
