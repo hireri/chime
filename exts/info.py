@@ -565,7 +565,9 @@ class Info(BaseCog):
                     embed.title = f"{emoji_data.get('annotation', 'unknown')}"
                     embed.set_author(name="default emoji")
                     embed.add_field(
-                        name="unicode", value=f"`U+{ord(emoji):X}`", inline=True
+                        name="unicode",
+                        value=f"`U+{emoji_data['hexcode']}`",
+                        inline=True,
                     )
                     embed.add_field(
                         name="category",
@@ -573,7 +575,7 @@ class Info(BaseCog):
                         inline=True,
                     )
                     embed.set_thumbnail(
-                        url=f"https://www.emoji.family/api/emojis/{emoji}/twemoji/png/64"
+                        url=f"https://www.emoji.family/api/emojis/{emoji_data['hexcode']}/twemoji/png/64"
                     )
                 else:
                     embed.description = f"could not find emoji **{emoji}**"
