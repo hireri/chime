@@ -192,7 +192,11 @@ class Guild(BaseCog):
                 )
             )
 
-    @commands.command()
+    @commands.command(
+        name="purge",
+        brief="delete messages in a channel",
+        aliases=["prune", "clear", "p", "c"],
+    )
     @commands.has_permissions(manage_messages=True)
     async def purge(self, ctx, *args):
         """Delete messages in a channel"""
