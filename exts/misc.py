@@ -14,7 +14,7 @@ from core.database import db
 
 class Misc(BaseCog):
     @commands.command(
-        name="rembg", aliases=["removebg"], brief="remove background from image"
+        name="rembg", aliases=["removebg", "rmbg"], brief="remove background from image"
     )
     async def rembg(self, ctx, url=None):
         """remove background from image"""
