@@ -51,6 +51,8 @@ class Config:
             "SEARCH": ":mag:",
             "GOOGLE": "",
             "LINK": ":link:",
+            "BRANCH": "├",
+            "TAIL": "└",
         }
 
         for icon in icons:

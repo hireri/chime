@@ -256,6 +256,7 @@ class Info(BaseCog):
                 )
                 .set_thumbnail(url=ctx.guild.icon.url)
                 .set_author(name=f"{ctx.guild.name}'s boosters")
+                .set_footer(text=f"{len(boosters)} boosters")
             )
         await self.paginate(ctx, pages)
 
@@ -280,6 +281,7 @@ class Info(BaseCog):
                 )
                 .set_thumbnail(url=ctx.guild.icon.url)
                 .set_author(name=f"{ctx.guild.name}'s bots")
+                .set_footer(text=f"{len(bots)} bots")
             )
         await self.paginate(ctx, pages)
 
@@ -376,24 +378,24 @@ class Info(BaseCog):
         )
         embed.add_field(
             name=f"members: **{guild.member_count}**",
-            value=f"├ bots: **{len([i for i in guild.members if i.bot])}**\n└ users: **{len([i for i in guild.members if not i.bot])}**",
+            value=f"{config.BRANCH_ICON} bots: **{len([i for i in guild.members if i.bot])}**\n{config.TAIL_ICON} users: **{len([i for i in guild.members if not i.bot])}**",
             inline=True,
         )
         embed.add_field(
             name="info",
-            value=f"├ verification: **{guild.verification_level}**\n├ boosts: **{guild.premium_subscription_count}**\n└ level **{guild.premium_tier}**",
+            value=f"{config.BRANCH_ICON} verification: **{guild.verification_level}**\n{config.BRANCH_ICON} boosts: **{guild.premium_subscription_count}**\n{config.TAIL_ICON} level **{guild.premium_tier}**",
         )
         embed.add_field(
             name=f"channels: **{len(guild.channels)}**",
-            value=f"├ categories: **{len([i for i in guild.categories])}**\n├ text: **{len([i for i in guild.text_channels])}**\n└ voice: **{len([i for i in guild.voice_channels])}**",
+            value=f"{config.BRANCH_ICON} categories: **{len([i for i in guild.categories])}**\n{config.BRANCH_ICON} text: **{len([i for i in guild.text_channels])}**\n{config.TAIL_ICON} voice: **{len([i for i in guild.voice_channels])}**",
         )
         embed.add_field(
             name="stats",
-            value=f"├ roles: **{len(guild.roles)}**\n├ emojis: **{len(guild.emojis)}**\n└ boosters: **{len([i for i in guild.premium_subscribers])}**",
+            value=f"{config.BRANCH_ICON} roles: **{len(guild.roles)}**\n{config.BRANCH_ICON} emojis: **{len(guild.emojis)}**\n{config.TAIL_ICON} boosters: **{len([i for i in guild.premium_subscribers])}**",
         )
         embed.add_field(
             name="assets",
-            value=f"├ icon: **{icon}**\n├ banner: **{banner}**\n└ splash: **{splash}**",
+            value=f"{config.BRANCH_ICON} icon: **{icon}**\n{config.BRANCH_ICON} banner: **{banner}**\n{config.TAIL_ICON} splash: **{splash}**",
         )
         embed.set_thumbnail(url=guild.icon.url)
         await ctx.reply(embed=embed)
