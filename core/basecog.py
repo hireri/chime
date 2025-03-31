@@ -77,7 +77,7 @@ class BaseCog(commands.Cog):
         """send paginated embeds with navigation buttons"""
         if not pages:
             return await ctx.reply(
-                embed=self.error_embed(description="no pages to display")
+                embed=super().self.error_embed(description="no pages to display")
             )
 
         if len(pages) == 1:
@@ -145,7 +145,7 @@ class BaseCog(commands.Cog):
 
                 if interaction.user.id != ctx.author.id:
                     await interaction.response.send_message(
-                        embed=self.error_embed(
+                        embed=super().self.error_embed(
                             "you cannot use these controls as you didn't invoke the command"
                         ),
                         ephemeral=True,
