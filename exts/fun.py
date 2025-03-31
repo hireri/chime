@@ -1,7 +1,6 @@
 import asyncio
 import os
 import random
-import traceback
 from itertools import islice
 from urllib.parse import urlparse
 
@@ -11,8 +10,6 @@ import duckduckgo_images_api
 import googlesearch
 from discord.ext import commands
 from groq import AsyncGroq
-from rembg import remove
-from io import BytesIO
 
 import config
 from core.basecog import BaseCog
@@ -88,7 +85,6 @@ class Fun(BaseCog):
             duckduckgo_images_api.search,
             query,
         )
-        print(results)
         embeds = []
         for result in results["results"]:
             embed = self.embed(description=f"[source]({result['url']})")
@@ -165,7 +161,6 @@ class Fun(BaseCog):
             await self.paginate(ctx, pages, compact=True)
 
         except Exception:
-            print(traceback.format_exc())
             await ctx.reply(embed=self.error_embed(description="the ai didn't respond"))
         await ctx.message.remove_reaction(config.THINK_ICON, self.bot.user)
 
@@ -396,51 +391,6 @@ class Fun(BaseCog):
                     )
                 pages.append(page)
             await self.paginate(ctx, pages)
-
-    @commands.command(
-        name="rembg", aliases=["removebg"], brief="remove background from image"
-    )
-    async def rembg(self, ctx, url=None):
-        """remove background from image"""
-        image_data = None
-
-        if url:
-            async with self.bot.session.get(url) as resp:
-                if resp.status == 200:
-                    image_data = await resp.read()
-                else:
-                    return await ctx.reply(
-                        embed=self.error_embed(description="could not get image")
-                    )
-
-        elif ctx.message.reference:
-            message = ctx.message.reference.resolved
-            if not message:
-                return await ctx.reply(
-                    embed=self.error_embed(description="invalid message")
-                )
-            if message.attachments:
-                image_data = await message.attachments[0].read()
-
-        elif ctx.message.attachments:
-            attachment = ctx.message.attachments[0]
-            if attachment.content_type.startswith("image/"):
-                image_data = await attachment.read()
-            else:
-                return await ctx.reply(
-                    embed=self.error_embed(description="not an image")
-                )
-
-        if not image_data:
-            return await ctx.reply(embed=self.error_embed(description="no image found"))
-
-        await ctx.message.add_reaction(config.THINK_ICON)
-        try:
-            output = await asyncio.to_thread(remove, image_data)
-            buffer = BytesIO(output)
-            await ctx.reply(file=discord.File(buffer, filename="rembg.png"))
-        finally:
-            await ctx.message.remove_reaction(config.THINK_ICON, self.bot.user)
 
 
 async def setup(bot):
