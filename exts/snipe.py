@@ -130,6 +130,7 @@ class Snipe(BaseCog):
     @commands.command(
         name="clearsnipe",
         description="Clear all results for reactions, edits and messages",
+        aliases=["cs"],
     )
     @commands.has_permissions(manage_messages=True)
     async def clearsnipe(self, ctx):
@@ -141,7 +142,9 @@ class Snipe(BaseCog):
         )
 
     @commands.command(
-        name="reactionsnipe", description="Snipe the latest reaction that was removed"
+        name="reactionsnipe",
+        description="Snipe the latest reaction that was removed",
+        aliases=["rs"],
     )
     async def reactionsnipe(self, ctx):
         history = self.reaction_history.get(ctx.channel.id, [])
@@ -169,7 +172,9 @@ class Snipe(BaseCog):
         await ctx.reply(embed=embed)
 
     @commands.command(
-        name="reactionhistory", description="See logged reactions for a message"
+        name="reactionhistory",
+        description="See logged reactions for a message",
+        aliases=["rh"],
     )
     @commands.has_permissions(manage_messages=True)
     async def reactionhistory(self, ctx, message_link: str = None):
@@ -222,7 +227,9 @@ class Snipe(BaseCog):
         await ctx.reply(embed=embed)
 
     @commands.command(
-        name="editsnipe", description="Snipe the latest message that was edited"
+        name="editsnipe",
+        description="Snipe the latest message that was edited",
+        aliases=["es"],
     )
     async def editsnipe(self, ctx, index: int = 1):
         history = self.edit_history.get(ctx.channel.id, [])
@@ -264,7 +271,9 @@ class Snipe(BaseCog):
         await ctx.reply(content=before.jump_url, embed=embed)
 
     @commands.command(
-        name="snipe", description="Snipe the latest message that was deleted"
+        name="snipe",
+        description="Snipe the latest message that was deleted",
+        aliases=["s"],
     )
     async def snipe(self, ctx, index: int = 1):
         history = self.message_history.get(ctx.channel.id, [])
