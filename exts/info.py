@@ -14,6 +14,24 @@ from core.basecog import BaseCog
 class Info(BaseCog):
     """quick info commands"""
 
+    badge_mapping = {
+        "active_developer": "<:active_developer:1356291294850453785>",
+        "bot_http_interactions": "<:bot_http_interactions:1356291877355261992>",
+        "bug_hunter": "<:bug_hunter:1356292387139358751>",
+        "bug_hunter_level_2": "<:bug_hunter_level_2:1356292512968609995>",
+        "early_supporter": "<:early_supporter:1356292844398186698>",
+        "early_verified_bot_developer": "<:early_verified_bot_developer:1356292947263492207>",
+        "hypesquad": "<:hypesquad:1356293073973543243>",
+        "hypesquad_balance": "<:hypesquad_balance:1356293209864540171>",
+        "hypesquad_bravery": "<:hypesquad_bravery:1356293325753286737>",
+        "hypesquad_brilliance": "<:hypesquad_brilliance:1356293405084225616>",
+        "partner": "<:partner:1356293499665780946>",
+        "staff": "<:staff:1356292737590231240>",
+        "verified_bot": "<:verified_bot:1356295016032763994>",
+        "nitro": "<:nitro:1356298169645793350>",
+        "app": "<:app:1356298588111507476>",
+    }
+
     @commands.command(name="ping", brief="check the bot's latency")
     async def ping(self, ctx):
         """check the bot's latency"""
@@ -297,7 +315,8 @@ class Info(BaseCog):
     async def userinfo(self, ctx, user: discord.Member = None):
         user = user or ctx.author
         global_user = await self.bot.fetch_user(user.id)
-        embed = self.embed(description=f"id: `{user.id}`", color=user.color)
+        badges = []
+        embed = self.embed(color=user.color)
         embed.set_author(name=f"{user.name}'s info", icon_url=user.avatar.url)
         embed.add_field(
             name="created at",
@@ -312,6 +331,22 @@ class Info(BaseCog):
         embed.set_thumbnail(url=user.avatar.url)
         if global_user.banner:
             embed.set_image(url=global_user.banner.url)
+
+        for name, flag in global_user.public_flags.all():
+            if name in self.badge_mapping:
+                badges.append(self.badge_mapping[name])
+
+        if (
+            user.banner
+            or user.guild_avatar != user.display_avatar
+            or user.avatar.is_animated()
+        ) and not user.bot:
+            badges.append(self.badge_mapping["nitro"])
+
+        if user.bot and self.badge_mapping["verified_bot"] not in badges:
+            badges.append(self.badge_mapping["app"])
+
+        embed.description = f"{''.join(badges)}\nid: `{user.id}`"
         await ctx.reply(embed=embed)
 
     @commands.command(
