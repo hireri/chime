@@ -8,16 +8,15 @@ from discord.ext import commands
 
 from .database import db
 from .prefixes import get_prefix_callable
+from .utils import would_invoke_command
 
 logger = logging.getLogger(__name__)
 
 
 class Core(commands.AutoShardedBot):
     def __init__(self):
-        # Initialize with all intents for maximum versatility
         intents = discord.Intents.all()
 
-        # Initialize the bot with dynamic prefix function
         super().__init__(
             command_prefix=get_prefix_callable(),
             intents=intents,
@@ -25,7 +24,6 @@ class Core(commands.AutoShardedBot):
             allowed_mentions=discord.AllowedMentions(everyone=False, roles=False),
         )
 
-        # Bot variables
         self.start_time = datetime.datetime.utcnow()
         self.session = None
         self.strip_after_prefix = True
@@ -35,18 +33,14 @@ class Core(commands.AutoShardedBot):
         """Initialize aiohttp session, database, and any other async startup tasks"""
         self.session = aiohttp.ClientSession()
 
-        # Initialize database connection
         await db.setup(self)
         logger.info("Database initialized")
 
-        # Load all extensions from the exts directory
         loaded_extensions = []
         failed_extensions = []
 
-        # Load jishaku for debugging
         await self.load_extension("jishaku")
 
-        # Load core extensions
         for filename in os.listdir("./core/exts"):
             if filename.endswith(".py"):
                 extension = f"core.exts.{filename[:-3]}"
@@ -58,7 +52,6 @@ class Core(commands.AutoShardedBot):
                     failed_extensions.append(extension)
                     logger.error(f"Failed to load extension {extension}: {e}")
 
-        # Load user extensions
         for filename in os.listdir("./exts"):
             if filename.endswith(".py"):
                 extension = f"exts.{filename[:-3]}"
@@ -89,18 +82,18 @@ class Core(commands.AutoShardedBot):
         """Called when the bot joins a new guild"""
         logger.info(f"Joined new guild: {guild.name} (ID: {guild.id})")
 
-        # Track the guild in database
         await db.update_guild(guild.id, guild.name)
 
-    async def on_command_completion(self, ctx):
-        """Process commands and track user activity"""
-        # Don't respond to bots
-        if ctx.author.bot:
+    async def on_message(self, message):
+        """insert user before processing commands"""
+        if (message.author.bot or not message.guild) or (
+            message.author.id in db.cache.entity_keys
+        ):
             return
 
-        self.loop.create_task(
-            db.update_user(ctx.author.id, ctx.author.name, ctx.author.discriminator)
-        )
+        if await would_invoke_command(self, message):
+            await db.update_user(message.author.id, message.author.name)
+            await self.process_commands(message)
 
     async def fetch_image(self, url):
         """Fetch an image from a URL"""
