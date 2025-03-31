@@ -12,7 +12,7 @@ from .prefixes import get_prefix_callable
 logger = logging.getLogger(__name__)
 
 
-class Core(commands.Bot):
+class Core(commands.AutoShardedBot):
     def __init__(self):
         # Initialize with all intents for maximum versatility
         intents = discord.Intents.all()
