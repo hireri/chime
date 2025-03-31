@@ -154,7 +154,7 @@ class PrefixCommands(BaseCog):
                 )
             )
 
-        await db.update_user(ctx.author.id, ctx.author.name, ctx.author.discriminator)
+        await db.update_user(ctx.author.id, ctx.author.name)
 
         await prefix_manager.set_user_prefix(ctx.author.id, new_prefix)
 
