@@ -193,13 +193,15 @@ class Fun(BaseCog):
         if tag:
             if tag["user_id"] != ctx.author.id:
                 await ctx.reply(
-                    self.warning_embed(description=f"tag **{tag_name}** already exists")
+                    embed=self.warning_embed(
+                        description=f"tag **{tag_name}** already exists"
+                    )
                 )
                 return
             else:
                 await db.update_tag(tag, name=tag_name, content=description)
                 await ctx.reply(
-                    self.success_embed(description=f"tag **{tag_name}** updated")
+                    embed=self.success_embed(description=f"tag **{tag_name}** updated")
                 )
         else:
             tag = await db.create_tag(

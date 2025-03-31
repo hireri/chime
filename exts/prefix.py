@@ -94,7 +94,9 @@ class PrefixCommands(BaseCog):
         await prefix_manager.set_guild_prefix(ctx.guild.id, new_prefix)
 
         await ctx.reply(
-            embed=self.success_embed(description=f"server prefix set to `{new_prefix}`")
+            embed=self.success_embed(
+                description=f"server prefix set to **{new_prefix}**"
+            )
         )
 
     @prefix.command(name="view", brief="View current prefix")
@@ -158,7 +160,7 @@ class PrefixCommands(BaseCog):
 
         await ctx.reply(
             embed=self.success_embed(
-                description=f"your personal prefix set to `{new_prefix}`"
+                description=f"your personal prefix set to **{new_prefix}**"
             )
         )
 

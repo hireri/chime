@@ -206,7 +206,7 @@ class Guild(BaseCog):
             deleted = await ctx.channel.purge(limit=5)
             await ctx.send(
                 embed=self.success_embed(
-                    description=f"deleted **{len(deleted)}** messages"
+                    description=f"{ctx.channel.mention} deleted **{len(deleted)}** messages"
                 ),
                 delete_after=10,
             )
@@ -218,7 +218,7 @@ class Guild(BaseCog):
                 deleted = await ctx.channel.purge(limit=limit)
                 await ctx.send(
                     embed=self.success_embed(
-                        description=f"deleted **{len(deleted)}** messages"
+                        description=f"{ctx.channel.mention} deleted **{len(deleted)}** messages"
                     ),
                     delete_after=10,
                 )
