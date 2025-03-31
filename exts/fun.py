@@ -12,6 +12,7 @@ import googlesearch
 from discord.ext import commands
 from groq import AsyncGroq
 from rembg import remove
+from io import BytesIO
 
 import config
 from core.basecog import BaseCog
@@ -397,26 +398,47 @@ class Fun(BaseCog):
     @commands.command(
         name="rembg", aliases=["removebg"], brief="remove background from image"
     )
-    async def rembg(self, ctx):
+    async def rembg(self, ctx, url=None):
         """remove background from image"""
-        if not ctx.message.attachments:
+        image_data = None
+
+        if url:
+            async with self.bot.session.get(url) as resp:
+                if resp.status == 200:
+                    image_data = await resp.read()
+                else:
+                    return await ctx.reply(
+                        embed=self.error_embed(description="could not get image")
+                    )
+
+        elif ctx.message.reference:
+            message = ctx.message.reference.resolved
+            if not message:
+                return await ctx.reply(
+                    embed=self.error_embed(description="invalid message")
+                )
+            if message.attachments:
+                image_data = await message.attachments[0].read()
+
+        elif ctx.message.attachments:
+            attachment = ctx.message.attachments[0]
+            if attachment.content_type.startswith("image/"):
+                image_data = await attachment.read()
+            else:
+                return await ctx.reply(
+                    embed=self.error_embed(description="not an image")
+                )
+
+        if not image_data:
             return await ctx.reply(embed=self.error_embed(description="no image found"))
 
-        image = ctx.message.attachments[0]
-
-        if not image.content_type.startswith("image/"):
-            return await ctx.reply(embed=self.error_embed(description="not an image"))
-
         await ctx.message.add_reaction(config.THINK_ICON)
-
-        from io import BytesIO
-
-        file = await image.read()
-        output = await asyncio.to_thread(remove, file)
-        buffer = BytesIO(output)
-        await ctx.reply(file=discord.File(buffer, filename="rembg.png"))
-
-        await ctx.message.remove_reaction(config.THINK_ICON, self.bot.user)
+        try:
+            output = await asyncio.to_thread(remove, image_data)
+            buffer = BytesIO(output)
+            await ctx.reply(file=discord.File(buffer, filename="rembg.png"))
+        finally:
+            await ctx.message.remove_reaction(config.THINK_ICON, self.bot.user)
 
 
 async def setup(bot):
