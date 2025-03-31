@@ -35,10 +35,26 @@ class Config:
         self._config.set("vars.colors", "SUCCESS", "0x4d4d4d")
 
         self._config.add_section("vars.icons")
-        self._config.set("vars.icons", "MAIN", "")
-        self._config.set("vars.icons", "WARN", ":warning:")
-        self._config.set("vars.icons", "ERROR", ":question:")
-        self._config.set("vars.icons", "SUCCESS", ":white_check_mark:")
+
+        icons = {
+            "MAIN": "",
+            "WARN": ":warning:",
+            "ERROR": ":x:",
+            "SUCCESS": ":white_check_mark:",
+            "NEXT": ":arrow_right:",
+            "PREV": ":arrow_left:",
+            "LAST": ":track_next:",
+            "FIRST": ":track_previous:",
+            "PAGE": ":paper:",
+            "WAIT": ":hourglass:",
+            "THINK": ":hourglass:",
+            "SEARCH": ":mag:",
+            "GOOGLE": "",
+            "LINK": ":link:",
+        }
+
+        for icon in icons:
+            self._config.set("vars.icons", icon, icons[icon])
 
         self._config.set("vars", "PREFIX", ".")
 
