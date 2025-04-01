@@ -72,16 +72,18 @@ class BaseCog(commands.Cog):
         )
 
     async def paginate(
-        self, ctx, pages: List[discord.Embed], timeout: int = 60, compact=False
+        self,
+        ctx,
+        pages: List[discord.Embed],
+        timeout: int = 60,
+        compact=False,
+        extra_buttons=None,
     ):
         """send paginated embeds with navigation buttons"""
         if not pages:
             return await ctx.reply(
                 embed=self.error_embed(description="no pages to display")
             )
-
-        if len(pages) == 1:
-            return await ctx.reply(embed=pages[0])
 
         class PaginationView(discord.ui.View):
             def __init__(self, pages, outer):
@@ -90,55 +92,62 @@ class BaseCog(commands.Cog):
                 self.current_page = 0
                 self.outer = outer
 
-                if not compact:
+                if len(pages) > 1:
+                    if not compact:
+                        self.add_item(
+                            discord.ui.Button(
+                                emoji=config.FIRST_ICON,
+                                style=discord.ButtonStyle.gray,
+                                custom_id="first",
+                                row=0,
+                            )
+                        )
+
                     self.add_item(
                         discord.ui.Button(
-                            emoji=config.FIRST_ICON,
+                            emoji=config.PREV_ICON,
                             style=discord.ButtonStyle.gray,
-                            custom_id="first",
+                            custom_id="prev",
                             row=0,
                         )
                     )
 
-                self.add_item(
-                    discord.ui.Button(
-                        emoji=config.PREV_ICON,
-                        style=discord.ButtonStyle.gray,
-                        custom_id="prev",
-                        row=0,
-                    )
-                )
-
-                self.add_item(
-                    discord.ui.Button(
-                        label=f"1/{len(pages)}",
-                        emoji=config.PAGE_ICON,
-                        style=discord.ButtonStyle.primary,
-                        custom_id="page",
-                        row=0,
-                    )
-                )
-
-                self.add_item(
-                    discord.ui.Button(
-                        emoji=config.NEXT_ICON,
-                        style=discord.ButtonStyle.gray,
-                        custom_id="next",
-                        row=0,
-                    )
-                )
-
-                if not compact:
                     self.add_item(
                         discord.ui.Button(
-                            emoji=config.LAST_ICON,
-                            style=discord.ButtonStyle.gray,
-                            custom_id="last",
+                            label=f"1/{len(pages)}",
+                            emoji=config.PAGE_ICON,
+                            style=discord.ButtonStyle.primary,
+                            custom_id="page",
                             row=0,
                         )
                     )
+
+                    self.add_item(
+                        discord.ui.Button(
+                            emoji=config.NEXT_ICON,
+                            style=discord.ButtonStyle.gray,
+                            custom_id="next",
+                            row=0,
+                        )
+                    )
+
+                    if not compact:
+                        self.add_item(
+                            discord.ui.Button(
+                                emoji=config.LAST_ICON,
+                                style=discord.ButtonStyle.gray,
+                                custom_id="last",
+                                row=0,
+                            )
+                        )
+
+                if extra_buttons:
+                    for button in extra_buttons:
+                        self.add_item(button)
 
                 for child in self.children:
+                    if child in extra_buttons:
+                        continue
                     child.callback = self.button_callback
 
             async def button_callback(self, interaction: discord.Interaction):
