@@ -362,15 +362,22 @@ class Fun(BaseCog):
     @commands.command(name="urban", brief="get a random urban dictionary definition")
     async def urban(self, ctx, *, query):
         """get a random urban dictionary definition"""
-        async with self.bot.session.get(
-            f"https://api.urbandictionary.com/v0/define?term={query}"
-        ) as resp:
-            if resp.status != 200:
-                await ctx.reply(
-                    embed=self.error_embed(description="could not get definition")
-                )
-                return
-            data = await resp.json()
+        try:
+            async with self.bot.session.get(
+                f"https://api.urbandictionary.com/v0/define?term={query}"
+            ) as resp:
+                if resp.status != 200:
+                    await ctx.reply(
+                        embed=self.error_embed(description="could not get definition")
+                    )
+                    return
+                data = await resp.json()
+        except Exception:
+            return await ctx.reply(
+                embed=self.error_embed(description="failed to fetch definition")
+            )
+
+        try:
             pages = []
             for definition in data["list"]:
                 page = self.embed(
@@ -391,6 +398,10 @@ class Fun(BaseCog):
                     )
                 pages.append(page)
             await self.paginate(ctx, pages)
+        except Exception:
+            return await ctx.reply(
+                embed=self.error_embed(description="failed to process definition")
+            )
 
 
 async def setup(bot):

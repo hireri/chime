@@ -601,70 +601,69 @@ class Info(BaseCog):
         - word: The word to look up
         """
         dictionary_api = "https://api.dictionaryapi.dev/api/v2/entries/en/{}"
-        async with self.bot.session.get(dictionary_api.format(word)) as response:
-            if response.status != 200:
-                await ctx.reply(
-                    embed=self.error_embed(
-                        description=f"could not find definition for **{word}**"
-                    )
-                )
-                return
 
-            try:
-                data = await response.json()
-
-                if not data:
+        try:
+            async with self.bot.session.get(dictionary_api.format(word)) as response:
+                if response.status != 200:
                     await ctx.reply(
                         embed=self.error_embed(
-                            description=f"no definitions found for **{word}**"
+                            description=f"could not find definition for **{word}**"
                         )
                     )
                     return
+                data = await response.json()
+        except Exception:
+            return await ctx.reply(
+                embed=self.error_embed(description="failed to fetch definition")
+            )
 
-                entry = data[0]
-
-                phonetic = self._extract_phonetic(entry.get("phonetics", []))
-
-                pages = []
-                for meaning in entry.get("meanings", []):
-                    part_of_speech = meaning.get("partOfSpeech", "unknown")
-
-                    for definition in meaning.get("definitions", []):
-                        def_text = definition.get(
-                            "definition", "no definition available."
-                        )
-                        embed = discord.Embed(
-                            title=entry.get("word", word).capitalize(),
-                            description=def_text,
-                            color=config.MAIN_COLOR,
-                        )
-
-                        if phonetic:
-                            embed.set_author(name=f"{phonetic} ({part_of_speech})")
-
-                        if definition.get("example", None):
-                            example = definition.get("example", "no example available")
-                            embed.add_field(name="example", value=example, inline=True)
-
-                        if definition.get("antonyms", None):
-                            antonyms = definition.get("antonyms", [])
-                            antonyms_text = (
-                                ", ".join(antonyms)
-                                if antonyms
-                                else "no antonyms available"
-                            )
-                            embed.add_field(
-                                name="antonyms", value=antonyms_text, inline=True
-                            )
-
-                        pages.append(embed)
-
-                await self.paginate(ctx, pages, compact=True)
-
-            except Exception:
-                return await ctx.reply(
-                    embed=self.error_embed(description="failed to get definition")
+        if not data:
+            await ctx.reply(
+                embed=self.error_embed(
+                    description=f"no definitions found for **{word}**"
                 )
+            )
+            return
+
+        try:
+            entry = data[0]
+            phonetic = self._extract_phonetic(entry.get("phonetics", []))
+
+            pages = []
+            for meaning in entry.get("meanings", []):
+                part_of_speech = meaning.get("partOfSpeech", "unknown")
+
+                for definition in meaning.get("definitions", []):
+                    def_text = definition.get("definition", "no definition available.")
+                    embed = discord.Embed(
+                        title=entry.get("word", word).capitalize(),
+                        description=def_text,
+                        color=config.MAIN_COLOR,
+                    )
+
+                    if phonetic:
+                        embed.set_author(name=f"{phonetic} ({part_of_speech})")
+
+                    if definition.get("example", None):
+                        example = definition.get("example", "no example available")
+                        embed.add_field(name="example", value=example, inline=True)
+
+                    if definition.get("antonyms", None):
+                        antonyms = definition.get("antonyms", [])
+                        antonyms_text = (
+                            ", ".join(antonyms) if antonyms else "no antonyms available"
+                        )
+                        embed.add_field(
+                            name="antonyms", value=antonyms_text, inline=True
+                        )
+
+                    pages.append(embed)
+
+            await self.paginate(ctx, pages, compact=True)
+        except Exception:
+            return await ctx.reply(
+                embed=self.error_embed(description="failed to process definition")
+            )
 
     def _extract_phonetic(self, phonetics):
         """
