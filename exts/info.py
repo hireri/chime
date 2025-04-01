@@ -642,16 +642,20 @@ class Info(BaseCog):
                         if phonetic:
                             embed.set_author(name=f"{phonetic} ({part_of_speech})")
 
-                        example = definition.get("example", "no example available")
-                        embed.add_field(name="example", value=example, inline=True)
+                        if definition.get("example", None):
+                            example = definition.get("example", "no example available")
+                            embed.add_field(name="example", value=example, inline=True)
 
-                        antonyms = definition.get("antonyms", [])
-                        antonyms_text = (
-                            ", ".join(antonyms) if antonyms else "no antonyms available"
-                        )
-                        embed.add_field(
-                            name="antonyms", value=antonyms_text, inline=True
-                        )
+                        if definition.get("antonyms", None):
+                            antonyms = definition.get("antonyms", [])
+                            antonyms_text = (
+                                ", ".join(antonyms)
+                                if antonyms
+                                else "no antonyms available"
+                            )
+                            embed.add_field(
+                                name="antonyms", value=antonyms_text, inline=True
+                            )
 
                         pages.append(embed)
 
