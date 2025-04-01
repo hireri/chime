@@ -93,7 +93,8 @@ class Core(commands.AutoShardedBot):
 
         if await would_invoke_command(self, message):
             await db.update_user(message.author.id, message.author.name)
-            await self.process_commands(message)
+
+        await self.process_commands(message)
 
     async def fetch_image(self, url):
         """Fetch an image from a URL"""

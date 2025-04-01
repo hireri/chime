@@ -65,12 +65,10 @@ class Cache:
         if key in self.data:
             del self.data[key]
 
-            # Remove from table tracking
             for table_keys in self.table_keys.values():
                 if key in table_keys:
                     table_keys.remove(key)
 
-            # Remove from entity tracking
             for entity_keys in self.entity_keys.values():
                 if key in entity_keys:
                     entity_keys.remove(key)
@@ -81,7 +79,6 @@ class Cache:
         """Intelligently invalidate cache entries by table name or entity ID."""
         keys_to_remove = set()
 
-        # Case 1: Full cache invalidation
         if table_name is None and entity_id is None:
             count = len(self.data)
             self.data.clear()
@@ -89,32 +86,26 @@ class Cache:
             self.entity_keys.clear()
             return count
 
-        # Case 2: Table-level invalidation
         if table_name and entity_id is None:
             if table_name in self.table_keys:
                 keys_to_remove.update(self.table_keys[table_name])
                 self.table_keys[table_name].clear()
 
-        # Case 3: Entity-level invalidation
         if entity_id:
             if entity_id in self.entity_keys:
                 keys_to_remove.update(self.entity_keys[entity_id])
                 self.entity_keys[entity_id].clear()
 
-        # Case 4: Combined table and entity invalidation
         if table_name and entity_id:
             if table_name in self.table_keys and entity_id in self.entity_keys:
-                # Find intersection of keys for this table and entity
                 table_set = self.table_keys[table_name]
                 entity_set = self.entity_keys[entity_id]
                 keys_to_remove.update(table_set.intersection(entity_set))
 
-        # Remove all identified keys
         for key in keys_to_remove:
             if key in self.data:
                 del self.data[key]
 
-        # Clean up empty sets
         if table_name in self.table_keys and not self.table_keys[table_name]:
             del self.table_keys[table_name]
         if entity_id in self.entity_keys and not self.entity_keys[entity_id]:
@@ -193,8 +184,7 @@ class Database:
         """Extract the table name from a SQL query."""
         query = query.strip().lower()
 
-        # Common tables to check for
-        tables = ["guilds", "users", "prefixes", "tags", "afk_users"]
+        tables = ["guilds", "users", "prefixes", "tags", "afk_users", "aliases"]
 
         for table in tables:
             if (
@@ -227,21 +217,20 @@ class Database:
         entity_ids = []
         table = self._get_table_name(query)
 
-        # Extract IDs from arguments for common patterns
         if "where id = $" in query.lower() and args:
             entity_ids.append(str(args[0]))
 
-        # For composite keys like user_id and guild_id
+        if "where guild_id = $1" in query.lower() and args:
+            entity_ids.append(str(args[0]))
+
         if table == "afk_users" and len(args) >= 2:
             if "user_id = $1 and guild_id = $2" in query.lower():
-                entity_ids.append(f"{args[0]}:{args[1]}")  # Composite key
+                entity_ids.append(f"{args[0]}:{args[1]}")
 
-        # For tags lookups
         if table == "tags" and len(args) >= 2:
             if "name = $1 and guild_id = $2" in query.lower():
-                entity_ids.append(f"tag:{args[0]}:{args[1]}")  # Tag name + guild
+                entity_ids.append(f"tag:{args[0]}:{args[1]}")
 
-        # Extract IDs from results
         if result:
             if isinstance(result, asyncpg.Record) and "id" in result:
                 entity_ids.append(str(result["id"]))
@@ -264,7 +253,6 @@ class Database:
         table_name = self._get_table_name(query)
 
         if query_type in ("insert", "update", "delete") and table_name != "unknown":
-            # Automatically invalidate cache for write operations
             self.cache.invalidate(table_name=table_name)
 
         try:
@@ -288,7 +276,6 @@ class Database:
             async with self._pool.acquire() as conn:
                 result = await conn.fetch(query, *args, **kwargs)
 
-                # Store in cache with metadata for smart invalidation
                 table = self._get_table_name(query)
                 entity_ids = self._extract_entity_ids(query, args, result)
                 self.cache.set(cache_key, result, table, entity_ids)
@@ -311,7 +298,6 @@ class Database:
             async with self._pool.acquire() as conn:
                 result = await conn.fetchrow(query, *args, **kwargs)
 
-                # Store in cache with metadata for smart invalidation
                 table = self._get_table_name(query)
                 entity_ids = self._extract_entity_ids(query, args, result)
                 self.cache.set(cache_key, result, table, entity_ids)
@@ -334,7 +320,6 @@ class Database:
             async with self._pool.acquire() as conn:
                 result = await conn.fetchval(query, *args, **kwargs)
 
-                # Only cache non-None results
                 if result is not None:
                     table = self._get_table_name(query)
                     entity_ids = self._extract_entity_ids(query, args)
@@ -607,12 +592,132 @@ class Database:
 
         return result is not None
 
-    async def get_guild_afk(self, guild_id: int) -> Optional[Dict[str, Any]]:
+    async def get_guild_afk(self, guild_id: int) -> Optional[asyncpg.Record]:
         query = """
             SELECT * FROM afk_users WHERE guild_id = $1
         """
         records = await self.fetch(query, guild_id)
         return records
+
+    async def get_aliases(self, guild_id: int) -> Optional[asyncpg.Record]:
+        query = """
+            SELECT * FROM aliases WHERE guild_id = $1
+        """
+        records = await self.fetch(query, guild_id)
+        return records
+
+    async def add_alias(
+        self, guild_id: int, alias: str, command: str
+    ) -> tuple[str, bool]:
+        command_parts = command.split()
+
+        query = """
+            WITH inserted AS (
+                INSERT INTO aliases (guild_id, alias, command)
+                VALUES ($1, $2, $3::TEXT[])
+                ON CONFLICT (guild_id, alias) DO NOTHING
+                RETURNING command, TRUE as is_new
+            )
+            SELECT COALESCE(i.command, a.command) as command, 
+                COALESCE(i.is_new, FALSE) as is_new
+            FROM (SELECT $3::TEXT[] as command) _ 
+            LEFT JOIN inserted i ON TRUE
+            LEFT JOIN aliases a ON a.guild_id = $1 AND a.alias = $2
+        """
+
+        result = await self.fetchrow(query, guild_id, alias, command_parts)
+
+        command_str = result["command"]
+        is_new = result["is_new"]
+
+        print(result)
+        print(command_str)
+        print(is_new)
+
+        if is_new:
+            self.cache.invalidate(table_name="aliases", entity_id=str(guild_id))
+
+        return command_str, is_new
+
+    async def remove_alias(
+        self, guild_id: int, alias: str
+    ) -> tuple[bool, list[str] | None]:
+        query = """
+            WITH deleted AS (
+                DELETE FROM aliases
+                WHERE guild_id = $1 AND alias = $2
+                RETURNING command
+            )
+            SELECT command, EXISTS(SELECT 1 FROM deleted) as was_deleted
+            FROM deleted
+            UNION ALL
+            SELECT NULL as command, FALSE as was_deleted
+            WHERE NOT EXISTS(SELECT 1 FROM deleted)
+            LIMIT 1
+        """
+
+        result = await self.fetchrow(query, guild_id, alias)
+
+        was_deleted = result["was_deleted"]
+        command = result["command"]
+
+        print(result)
+        print(was_deleted)
+        print(command)
+
+        if was_deleted:
+            print("invalidating")
+            self.cache.invalidate(table_name="aliases", entity_id=str(guild_id))
+
+        return was_deleted, command
+
+    async def remove_aliases_cmd(self, guild_id: int, command_parts: list[str]) -> int:
+        query = """
+            WITH deleted AS (
+                DELETE FROM aliases
+                WHERE guild_id = $1 AND command = $2
+                RETURNING id
+            )
+            SELECT COUNT(*) as count FROM deleted
+        """
+
+        count = await self.fetchval(query, guild_id, command_parts)
+        print(count)
+
+        if count > 0:
+            self.cache.invalidate(table_name="aliases", entity_id=str(guild_id))
+
+        return count
+
+    async def reset_aliases(self, guild_id: int) -> int:
+        query = """
+            WITH deleted AS (
+                DELETE FROM aliases
+                WHERE guild_id = $1
+                RETURNING id
+            )
+            SELECT COUNT(*) as count FROM deleted
+        """
+
+        count = await self.fetchval(query, guild_id)
+        print(count)
+
+        self.cache.invalidate(table_name="aliases", entity_id=str(guild_id))
+
+        return count
+
+    async def get_alias(self, guild_id: int, alias: str) -> list[str] | None:
+        query = """
+            SELECT command FROM aliases
+            WHERE guild_id = $1 AND alias = $2
+        """
+
+        result = await self.fetchrow(query, guild_id, alias)
+
+        if result is None:
+            return None
+
+        return result["command"]
 
 
 db = Database()

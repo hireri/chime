@@ -52,3 +52,16 @@ CREATE TABLE IF NOT EXISTS afk_users (
 );
 
 CREATE INDEX IF NOT EXISTS idx_afk_users_user_guild ON afk_users (user_id, guild_id);
+
+CREATE TABLE IF NOT EXISTS aliases (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid (),
+    created_at TIMESTAMPTZ DEFAULT now(),
+    guild_id BIGINT NOT NULL,
+    alias TEXT NOT NULL CHECK (alias = LOWER(alias)),
+    command TEXT [] NOT NULL,
+    CONSTRAINT unique_alias UNIQUE (alias),
+    CONSTRAINT unique_guild_alias UNIQUE (guild_id, alias),
+    FOREIGN KEY (guild_id) REFERENCES guilds(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_aliases_guild ON aliases (guild_id);

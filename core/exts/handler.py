@@ -2,6 +2,8 @@ import traceback
 from typing import Optional, Union
 
 import discord
+from core.database import db
+import copy
 from discord.ext import commands
 
 import config
@@ -66,7 +68,45 @@ class ErrorHandler(BaseCog):
         self.logger.error(f"Command error in {ctx.command}: {error}", exc_info=error)
 
         if isinstance(error, commands.CommandNotFound):
-            return
+            if not ctx.guild:
+                return
+            invoked_with = ctx.invoked_with.lower()
+            aliases = await db.get_aliases(ctx.guild.id)
+            if aliases:
+                alias_command = next(
+                    (
+                        a["command"]
+                        for a in aliases
+                        if a["alias"].lower() == invoked_with
+                    ),
+                    None,
+                )
+                if alias_command:
+                    aliased_command = " ".join(alias_command)
+                new_content = ctx.prefix + aliased_command
+
+                if ctx.message.content.strip() != ctx.prefix + ctx.invoked_with:
+                    args = ctx.message.content[
+                        len(ctx.prefix + ctx.invoked_with) :
+                    ].strip()
+                    new_content += " " + args
+
+                new_message = copy.copy(ctx.message)
+                new_message.content = new_content
+
+                new_ctx = await self.bot.get_context(new_message)
+
+                if new_ctx.command is None:
+                    await ctx.send(
+                        f"the aliased command **{aliased_command}** was not found"
+                    )
+                    return
+
+                try:
+                    await new_ctx.command.invoke(new_ctx)
+                except Exception as e:
+                    print(e)
+                    await self.on_command_error(new_ctx, e)
 
         elif isinstance(error, commands.MissingRequiredArgument):
             param_name = error.param.name
@@ -176,13 +216,10 @@ class ErrorHandler(BaseCog):
             error = error.original
 
         self.logger.error(
-            f"Slash command error in {command_name}: {error}", exc_info=error
+            f"slash command error in {command_name}: {error}", exc_info=error
         )
 
-        if isinstance(error, discord.app_commands.CommandNotFound):
-            return
-
-        elif isinstance(error, discord.app_commands.MissingPermissions):
+        if isinstance(error, discord.app_commands.MissingPermissions):
             perms = ", ".join(f"`{p}`" for p in error.missing_permissions)
             await self._send_error_message(
                 interaction,
