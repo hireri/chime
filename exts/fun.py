@@ -1,5 +1,6 @@
 import asyncio
 import os
+import io
 import random
 from itertools import islice
 from urllib.parse import urlparse
@@ -9,6 +10,7 @@ import dotenv
 import duckduckgo_images_api
 import googlesearch
 from discord.ext import commands
+from discord import ui, File
 from groq import AsyncGroq
 
 import config
@@ -158,11 +160,24 @@ class Fun(BaseCog):
                     )
                 )
 
-            await self.paginate(ctx, pages, compact=True)
+            async def callback(interaction: discord.Interaction):
+                file = io.BytesIO(response.choices[0].message.content.encode())
+                await interaction.response.send_message(
+                    file=File(file, filename="response.txt"), ephemeral=True
+                )
 
-        except Exception:
+            button = ui.Button(
+                emoji=config.DOWNLOAD_ICON, style=discord.ButtonStyle.gray
+            )
+            button.callback = callback
+
+            await self.paginate(ctx, pages, compact=True, extra_buttons=[button])
+
+        except Exception as e:
+            print(e)
             await ctx.reply(embed=self.error_embed(description="the ai didn't respond"))
-        await ctx.message.remove_reaction(config.THINK_ICON, self.bot.user)
+        finally:
+            await ctx.message.remove_reaction(config.THINK_ICON, self.bot.user)
 
     @commands.group(name="tag", aliases=["tags"], invoke_without_command=True)
     async def tag(self, ctx, tag_name: str):
