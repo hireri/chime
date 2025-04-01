@@ -363,7 +363,7 @@ class Info(BaseCog):
         icon = f"[url]({guild.icon.url})" if guild.icon else "unset"
 
         embed = self.embed(
-            description=f"id: `{guild.id}`\n{guild.description}", color=guild.me.color
+            description=f"{guild.description or 'no description'}\n-# id: `{guild.id}`"
         )
         embed.set_author(name=f"{guild.name}'s info", icon_url=guild.icon.url)
         embed.add_field(
