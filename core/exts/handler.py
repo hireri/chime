@@ -1,13 +1,13 @@
+import copy
 import traceback
 from typing import Optional, Union
 
 import discord
-from core.database import db
-import copy
 from discord.ext import commands
 
 import config
 from core.basecog import BaseCog
+from core.database import db
 
 
 class ErrorHandler(BaseCog):
