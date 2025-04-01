@@ -351,6 +351,42 @@ class Guild(BaseCog):
                 embed=self.success_embed(description="the server is in **lockdown**")
             )
 
+    @commands.command(
+        name="invites", brief="view invites for the server", aliases=["inv", "invite"]
+    )
+    @commands.has_permissions(manage_guild=True)
+    async def invites(self, ctx):
+        """view invites for the server"""
+        invites = await ctx.guild.invites()
+        if not invites:
+            return await ctx.reply(
+                embed=self.error_embed(
+                    description="this server doesn't have any invites"
+                )
+            )
+        invites_per_page = 10
+        pages = []
+        for i in range(0, len(invites), invites_per_page):
+            page = invites[i : i + invites_per_page]
+
+            embed = self.embed(
+                description="\n".join(
+                    f"- **[{invite.code}]({invite.url})** expires {discord.utils.format_dt(invite.expires_at, style='R') if invite.expires_at else '`never`'} {invite.inviter.mention}"
+                    for invite in page
+                    if not invite.revoked
+                )
+            ).set_author(
+                name=f"{ctx.guild.name}'s invites", icon_url=ctx.guild.icon.url
+            )
+
+            embed.set_footer(
+                text=f"vanity: .gg/{ctx.guild.vanity_url_code}"
+                if ctx.guild.vanity_url_code
+                else "no vanity url"
+            )
+            pages.append(embed)
+        await self.paginate(ctx, pages)
+
 
 async def setup(bot):
     await bot.add_cog(Guild(bot))
