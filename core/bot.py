@@ -108,7 +108,6 @@ class Core(commands.AutoShardedBot):
         if self.session:
             await self.session.close()
 
-        # Close database connection
         await db.close()
 
         await super().close()
