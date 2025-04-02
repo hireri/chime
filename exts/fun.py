@@ -20,6 +20,111 @@ from core.database import db
 dotenv.load_dotenv()
 
 
+class ReplyModal(ui.Modal):
+    def __init__(self, title, history):
+        super().__init__(title=title)
+        self.history = history
+        self.user_input = ui.TextInput(
+            label="Your message",
+            placeholder="Enter your message here...",
+            style=discord.TextStyle.paragraph,
+            max_length=2000,
+        )
+        self.add_item(self.user_input)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        del_resp = await interaction.response.defer(thinking=True)
+
+        self.history.append({"role": "user", "content": self.user_input.value})
+
+        model = "llama-3.2-90b-vision-preview"
+
+        messages = []
+        for entry in self.history:
+            if entry["role"] == "user":
+                messages.append(
+                    {
+                        "role": "user",
+                        "content": [{"type": "text", "text": entry["content"]}],
+                    }
+                )
+            else:
+                messages.append({"role": "assistant", "content": entry["content"]})
+
+        try:
+            client = AsyncGroq(api_key=os.getenv("AI_KEY"))
+            response = await client.chat.completions.create(
+                model=model,
+                messages=messages,
+                max_completion_tokens=1024,
+            )
+
+            response_text = response.choices[0].message.content
+
+            self.history.append({"role": "assistant", "content": response_text})
+
+            words_per_page = 148
+            pages = []
+            for i in range(0, len(response_text.split(" ")), words_per_page):
+                page = response_text.split(" ")[i : i + words_per_page]
+                pages.append(
+                    self.cog.embed(description=" ".join(page)).set_author(
+                        name=" ".join(model.split("-")),
+                        icon_url="https://images.seeklogo.com/logo-png/59/1/ollama-logo-png_seeklogo-593420.png",
+                    )
+                )
+
+            reply_button = ui.Button(
+                emoji=config.PLANE_ICON, style=discord.ButtonStyle.gray
+            )
+
+            async def new_reply_callback(new_interaction: discord.Interaction):
+                if new_interaction.user.id != self.ctx.author.id:
+                    await new_interaction.response.send_message(
+                        embed=self.cog.error_embed(
+                            description="you cannot use these controls"
+                        ),
+                        ephemeral=True,
+                    )
+                    return
+
+                new_modal = ReplyModal(
+                    title="Continue conversation", history=self.history
+                )
+                new_modal.cog = self.cog
+                new_modal.ctx = self.ctx
+
+                await new_interaction.response.send_modal(new_modal)
+
+            reply_button.callback = new_reply_callback
+
+            download_button = ui.Button(
+                emoji=config.DOWNLOAD_ICON, style=discord.ButtonStyle.gray
+            )
+
+            async def download_callback(new_interaction: discord.Interaction):
+                file = io.BytesIO(response_text.encode())
+                await new_interaction.response.send_message(
+                    file=File(file, filename="response.txt"), ephemeral=True
+                )
+
+            download_button.callback = download_callback
+
+            await del_resp.resource.delete()
+            await self.cog.paginate(
+                self.ctx,
+                pages,
+                compact=True,
+                extra_buttons=[reply_button, download_button],
+            )
+
+        except Exception as e:
+            print(e)
+            await self.ctx.channel.send(
+                embed=self.cog.error_embed(description="the ai didn't respond")
+            )
+
+
 class Fun(BaseCog):
     def __init__(self, bot):
         self.tags_blocked = []
@@ -119,59 +224,90 @@ class Fun(BaseCog):
             await ctx.reply(embed=self.error_embed(description="no results found"))
         await ctx.message.remove_reaction(config.THINK_ICON, self.bot.user)
 
+    async def ai_gen(self, message, history, model) -> str:
+        client = AsyncGroq(api_key=os.getenv("AI_KEY"))
+        messages = [
+            {
+                "role": "user",
+                "content": [{"type": "text", "text": message.content}],
+            }
+        ]
+        if message.attachments and message.attachments[0].content_type.startswith(
+            "image/"
+        ):
+            messages[0]["content"].append(
+                {
+                    "type": "image_url",
+                    "image_url": {"url": message.attachments[0].url},
+                }
+            )
+
+        response = await client.chat.completions.create(
+            model=model,
+            messages=messages,
+            max_completion_tokens=1024,
+        )
+
+        return response.choices[0].message.content, history
+
     @commands.command(name="ai", brief="talk to ai")
     async def ai(self, ctx, *, query):
         await ctx.message.add_reaction(config.THINK_ICON)
         try:
-            client = AsyncGroq(api_key=os.getenv("AI_KEY"))
-            messages = [
-                {
-                    "role": "user",
-                    "content": [{"type": "text", "text": query}],
-                }
-            ]
-            if ctx.message.attachments and ctx.message.attachments[
-                0
-            ].content_type.startswith("image/"):
-                messages[0]["content"].append(
-                    {
-                        "type": "image_url",
-                        "image_url": {"url": ctx.message.attachments[0].url},
-                    }
-                )
-            response = await client.chat.completions.create(
-                model="llama-3.2-11b-vision-preview",
-                messages=messages,
-                max_completion_tokens=1024,
-            )
+            model = "llama-3.2-90b-vision-preview"
+
+            history = [{"role": "user", "content": query}]
+            response_text, _ = await self.ai_gen(ctx.message, {}, model)
+            history.append({"role": "assistant", "content": response_text})
 
             words_per_page = 148
             pages = []
-            for i in range(
-                0, len(response.choices[0].message.content.split(" ")), words_per_page
-            ):
-                page = response.choices[0].message.content.split(" ")[
-                    i : i + words_per_page
-                ]
+            for i in range(0, len(response_text.split(" ")), words_per_page):
+                page = response_text.split(" ")[i : i + words_per_page]
                 pages.append(
                     self.embed(description=" ".join(page)).set_author(
-                        name="llama 3.2 11b vision preview",
+                        name=" ".join(model.split("-")),
                         icon_url="https://images.seeklogo.com/logo-png/59/1/ollama-logo-png_seeklogo-593420.png",
                     )
                 )
 
-            async def callback(interaction: discord.Interaction):
-                file = io.BytesIO(response.choices[0].message.content.encode())
+            reply_button = ui.Button(
+                emoji=config.PLANE_ICON, style=discord.ButtonStyle.gray
+            )
+
+            async def reply_callback(interaction: discord.Interaction):
+                if interaction.user.id != ctx.author.id:
+                    await interaction.response.send_message(
+                        embed=self.error_embed(
+                            description="you cannot use these controls"
+                        ),
+                        ephemeral=True,
+                    )
+                    return
+
+                modal = ReplyModal(title="Continue conversation", history=history)
+                modal.cog = self
+                modal.ctx = ctx
+
+                await interaction.response.send_modal(modal)
+
+            reply_button.callback = reply_callback
+
+            download_button = ui.Button(
+                emoji=config.DOWNLOAD_ICON, style=discord.ButtonStyle.gray
+            )
+
+            async def download_callback(interaction: discord.Interaction):
+                file = io.BytesIO(response_text.encode())
                 await interaction.response.send_message(
                     file=File(file, filename="response.txt"), ephemeral=True
                 )
 
-            button = ui.Button(
-                emoji=config.DOWNLOAD_ICON, style=discord.ButtonStyle.gray
-            )
-            button.callback = callback
+            download_button.callback = download_callback
 
-            await self.paginate(ctx, pages, compact=True, extra_buttons=[button])
+            await self.paginate(
+                ctx, pages, compact=True, extra_buttons=[reply_button, download_button]
+            )
 
         except Exception as e:
             print(e)
