@@ -77,7 +77,7 @@ class BaseCog(commands.Cog):
         pages: List[discord.Embed],
         timeout: int = 60,
         compact=False,
-        extra_buttons=None,
+        extra_buttons=[],
     ):
         """send paginated embeds with navigation buttons"""
         if not pages:
