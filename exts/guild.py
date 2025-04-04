@@ -212,122 +212,125 @@ class Guild(BaseCog):
             )
             return
 
-        if len(args) == 1 and args[0].isdigit():
-            try:
-                limit = int(args[0])
-                deleted = await ctx.channel.purge(limit=limit)
+        async with ctx.channel.typing():
+            if len(args) == 1 and args[0].isdigit():
+                try:
+                    limit = int(args[0])
+                    deleted = await ctx.channel.purge(limit=limit)
+                    await ctx.send(
+                        embed=self.success_embed(
+                            description=f"{ctx.channel.mention} deleted **{len(deleted)}** messages"
+                        ),
+                        delete_after=10,
+                    )
+                    return
+                except ValueError:
+                    pass
+
+            constraints = []
+            users = []
+            channels = []
+            limit = 5
+
+            for arg in args:
+                try:
+                    user_id = int(arg.strip("<@!>"))
+                    user = ctx.guild.get_member(user_id)
+                    if user:
+                        users.append(user)
+                        continue
+                except ValueError:
+                    pass
+
+                try:
+                    channel_id = int(arg.strip("<#>"))
+                    channel = ctx.guild.get_channel(channel_id)
+                    if channel:
+                        channels.append(channel)
+                        continue
+                except ValueError:
+                    pass
+
+                try:
+                    limit_val = int(arg)
+                    limit = limit_val
+                    continue
+                except ValueError:
+                    pass
+
+                if arg in ["bot", "bots"]:
+                    constraints.append(lambda m: m.author.bot)
+
+            if not channels:
+                channels = [ctx.channel]
+
+            def check_message(message):
+                if message.channel not in channels:
+                    return False
+
+                if users and message.author not in users:
+                    return False
+
+                for constraint in constraints:
+                    if not constraint(message):
+                        return False
+
+                return True
+
+            deleted_count = 0
+            messages_to_delete = []
+            search_limit = min(limit * 5, 1000)
+
+            for channel in channels:
+                if deleted_count >= limit:
+                    break
+
+                async for message in channel.history(limit=search_limit):
+                    if check_message(message):
+                        messages_to_delete.append(message)
+                        deleted_count += 1
+                        if deleted_count >= limit:
+                            break
+
+            if messages_to_delete:
+                two_weeks_ago = datetime.datetime.now(
+                    datetime.timezone.utc
+                ) - datetime.timedelta(days=14)
+                recent_messages = [
+                    msg for msg in messages_to_delete if msg.created_at > two_weeks_ago
+                ]
+                old_messages = [
+                    msg for msg in messages_to_delete if msg.created_at <= two_weeks_ago
+                ]
+
+                channel_messages = {}
+                for msg in recent_messages:
+                    if msg.channel not in channel_messages:
+                        channel_messages[msg.channel] = []
+                    channel_messages[msg.channel].append(msg)
+
+                messages_per_bulk = 100
+                for channel, msgs, i in channel_messages.items():
+                    msgs = msgs[i * messages_per_bulk : (i + 1) * messages_per_bulk]
+                    if msgs:
+                        await channel.delete_messages(msgs)
+
+                for message in old_messages:
+                    await message.delete()
+
                 await ctx.send(
                     embed=self.success_embed(
-                        description=f"{ctx.channel.mention} deleted **{len(deleted)}** messages"
+                        description=f"deleted **{len(messages_to_delete)}** messages"
                     ),
                     delete_after=10,
                 )
-                return
-            except ValueError:
-                pass
-
-        constraints = []
-        users = []
-        channels = []
-        limit = 5
-
-        for arg in args:
-            try:
-                user_id = int(arg.strip("<@!>"))
-                user = ctx.guild.get_member(user_id)
-                if user:
-                    users.append(user)
-                    continue
-            except ValueError:
-                pass
-
-            try:
-                channel_id = int(arg.strip("<#>"))
-                channel = ctx.guild.get_channel(channel_id)
-                if channel:
-                    channels.append(channel)
-                    continue
-            except ValueError:
-                pass
-
-            try:
-                limit_val = int(arg)
-                limit = limit_val
-                continue
-            except ValueError:
-                pass
-
-            if arg in ["bot", "bots"]:
-                constraints.append(lambda m: m.author.bot)
-
-        if not channels:
-            channels = [ctx.channel]
-
-        def check_message(message):
-            if message.channel not in channels:
-                return False
-
-            if users and message.author not in users:
-                return False
-
-            for constraint in constraints:
-                if not constraint(message):
-                    return False
-
-            return True
-
-        deleted_count = 0
-        messages_to_delete = []
-        search_limit = min(limit * 5, 1000)
-
-        for channel in channels:
-            if deleted_count >= limit:
-                break
-
-            async for message in channel.history(limit=search_limit):
-                if check_message(message):
-                    messages_to_delete.append(message)
-                    deleted_count += 1
-                    if deleted_count >= limit:
-                        break
-
-        if messages_to_delete:
-            two_weeks_ago = datetime.datetime.now(
-                datetime.timezone.utc
-            ) - datetime.timedelta(days=14)
-            recent_messages = [
-                msg for msg in messages_to_delete if msg.created_at > two_weeks_ago
-            ]
-            old_messages = [
-                msg for msg in messages_to_delete if msg.created_at <= two_weeks_ago
-            ]
-
-            channel_messages = {}
-            for msg in recent_messages:
-                if msg.channel not in channel_messages:
-                    channel_messages[msg.channel] = []
-                channel_messages[msg.channel].append(msg)
-
-            for channel, msgs in channel_messages.items():
-                if msgs:
-                    await channel.delete_messages(msgs)
-
-            for message in old_messages:
-                await message.delete()
-
-            await ctx.send(
-                embed=self.success_embed(
-                    description=f"deleted **{len(messages_to_delete)}** messages"
-                ),
-                delete_after=10,
-            )
-        else:
-            await ctx.send(
-                embed=self.warning_embed(
-                    description="no messages matched your criteria"
-                ),
-                delete_after=10,
-            )
+            else:
+                await ctx.send(
+                    embed=self.warning_embed(
+                        description="no messages matched your criteria"
+                    ),
+                    delete_after=10,
+                )
 
     @commands.command(
         name="lockdown", brief="Lockdown all channels", aliases=["lockall", "unlockall"]
