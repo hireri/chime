@@ -1,4 +1,5 @@
 import copy
+import datetime
 import traceback
 from typing import Optional, Union
 
@@ -47,7 +48,7 @@ class ErrorHandler(BaseCog):
             )
 
         if isinstance(ctx, commands.Context):
-            return await ctx.reply(embed=embed)
+            return await ctx.send(embed=embed)
         elif isinstance(ctx, discord.Interaction):
             if ctx.response.is_done():
                 return await ctx.followup.send(embed=embed, ephemeral=True)
@@ -143,9 +144,12 @@ class ErrorHandler(BaseCog):
             return
 
         elif isinstance(error, commands.CommandOnCooldown):
+            retry_when = discord.utils.utcnow() + datetime.timedelta(
+                seconds=error.retry_after
+            )
             await self._send_error_message(
                 ctx,
-                f"this command is on cooldown. try again in {error.retry_after:.2f}s.",
+                f"this command is on cooldown. try again {discord.utils.format_dt(retry_when, style='R')}.",
                 exception=error,
             )
 
@@ -236,9 +240,12 @@ class ErrorHandler(BaseCog):
             )
 
         elif isinstance(error, discord.app_commands.CommandOnCooldown):
+            retry_when = discord.utils.utcnow() + datetime.timedelta(
+                seconds=error.retry_after
+            )
             await self._send_error_message(
                 interaction,
-                f"this command is on cooldown. try again in {error.retry_after:.2f}s.",
+                f"this command is on cooldown. try again {discord.utils.format_dt(retry_when, style='R')}.",
                 exception=error,
             )
 
