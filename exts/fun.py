@@ -2,10 +2,13 @@ import asyncio
 import os
 import io
 import random
+import string
 from itertools import islice
 from urllib.parse import urlparse
 
 import discord
+import traceback
+import re
 import dotenv
 import duckduckgo_images_api
 import googlesearch
@@ -530,10 +533,20 @@ class Fun(BaseCog):
 
         await self.paginate(ctx, pages)
 
-    @commands.command(name="urban", brief="get a random urban dictionary definition")
+    @commands.command(
+        name="urban", brief="get a random urban dictionary definition", aliases=["ud"]
+    )
     @commands.cooldown(1, 5, commands.BucketType.user)
     async def urban(self, ctx, *, query):
         """get a random urban dictionary definition"""
+
+        def linkify(text: str) -> str:
+            return re.sub(
+                r"\[([^\[\]]+)\]",
+                lambda m: f"[{m.group(1)}](https://{re.sub(rf'[{re.escape(string.punctuation)}]', '', m.group(1)).replace(' ', '-')}.urbanup.com)",
+                text,
+            )
+
         try:
             async with self.bot.session.get(
                 f"https://api.urbandictionary.com/v0/define?term={query}"
@@ -553,11 +566,11 @@ class Fun(BaseCog):
             pages = []
             for definition in data["list"]:
                 page = self.embed(
-                    description=definition["definition"],
+                    description=linkify(definition["definition"]),
                     color=config.MAIN_COLOR,
                 )
                 if definition["example"]:
-                    page.add_field(name="example", value=definition["example"])
+                    page.add_field(name="example", value=linkify(definition["example"]))
                 if definition["author"]:
                     page.set_footer(
                         text=f"by {definition['author']}, {definition['thumbs_up']} likes",
@@ -569,8 +582,9 @@ class Fun(BaseCog):
                         icon_url="https://media.licdn.com/dms/image/v2/D560BAQGlykJwWd7v-g/company-logo_200_200/company-logo_200_200/0/1718946315384/urbandictionary_logo?e=2147483647&v=beta&t=jnPuu32SKBWZsFOfOHz7KugJq0S2UARN8CL0wOAyyro",
                     )
                 pages.append(page)
-            await self.paginate(ctx, pages)
+            await self.paginate(ctx, pages, compact=True)
         except Exception:
+            print(traceback.format_exc())
             return await ctx.reply(
                 embed=self.error_embed(description="failed to process definition")
             )
