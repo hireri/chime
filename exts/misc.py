@@ -10,9 +10,16 @@ from rembg import remove
 import config
 from core.basecog import BaseCog
 from core.database import db
+from core.utils import would_invoke_command
 
 
 class Misc(BaseCog):
+    def __init__(self, bot):
+        super().__init__(bot)
+        self._afk_cd_mapping = commands.CooldownMapping.from_cooldown(
+            1, 45.0, commands.BucketType.user
+        )
+
     @commands.command(
         name="rembg", aliases=["removebg", "rmbg"], brief="remove background from image"
     )
@@ -74,6 +81,9 @@ class Misc(BaseCog):
         if message.author.bot or not message.guild:
             return
 
+        if await would_invoke_command(self.bot, message, command_name="afk"):
+            return
+
         author_afk = await db.get_afk(
             user_id=message.author.id, guild_id=message.guild.id
         )
@@ -86,20 +96,23 @@ class Misc(BaseCog):
                     text=f"AFK since {timeago.format(author_afk['created_at'].replace(tzinfo=None), datetime.datetime.utcnow())}"
                 )
             )
-            return
 
         afk_users = await db.get_guild_afk(guild_id=message.guild.id)
         if not afk_users:
             return
 
         for row in afk_users:
-            if (
-                str(row["user_id"]) in message.content
-                and not message.author.id == row["user_id"]
-            ):
+            mentioned_user_id = row["user_id"]
+            mentioned_discord_user = message.guild.get_member(mentioned_user_id)
+            if mentioned_discord_user and mentioned_discord_user in message.mentions:
+                bucket = self._afk_cd_mapping.get_bucket(message)
+                retry_after = bucket.update_rate_limit()
+                if retry_after:
+                    continue
+
                 await message.reply(
                     embed=self.warning_embed(
-                        description=f"<@{row['user_id']}> is AFK for: **{row['message']}**"
+                        description=f"<@{mentioned_user_id}> is AFK for: **{row['message']}**"
                     ).set_footer(
                         text=f"AFK since {timeago.format(row['created_at'].replace(tzinfo=None), datetime.datetime.utcnow())}"
                     )
