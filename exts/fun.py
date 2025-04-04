@@ -206,6 +206,7 @@ class Fun(BaseCog):
         return embeds
 
     @commands.command(name="google", brief="search Google for a query")
+    @commands.cooldown(1, 5, commands.BucketType.user)
     async def google(self, ctx, *, query):
         results = await self.search(query)
 
@@ -215,6 +216,7 @@ class Fun(BaseCog):
         await ctx.reply(embed=self.error_embed(description="no results found"))
 
     @commands.command(name="image", brief="search for an image")
+    @commands.cooldown(1, 10, commands.BucketType.user)
     async def image(self, ctx, *, query):
         await ctx.message.add_reaction(config.THINK_ICON)
         try:
@@ -224,12 +226,20 @@ class Fun(BaseCog):
             await ctx.reply(embed=self.error_embed(description="no results found"))
         await ctx.message.remove_reaction(config.THINK_ICON, self.bot.user)
 
-    async def ai_gen(self, message, history, model) -> str:
+    async def ai_gen(
+        self,
+        message,
+        history,
+        model,
+        query=None,
+    ) -> str:
         client = AsyncGroq(api_key=os.getenv("AI_KEY"))
         messages = [
             {
                 "role": "user",
-                "content": [{"type": "text", "text": message.content}],
+                "content": [
+                    {"type": "text", "text": message.content if not query else query}
+                ],
             }
         ]
         if message.attachments and message.attachments[0].content_type.startswith(
@@ -251,13 +261,14 @@ class Fun(BaseCog):
         return response.choices[0].message.content, history
 
     @commands.command(name="ai", brief="talk to ai")
+    @commands.cooldown(1, 60, commands.BucketType.user)
     async def ai(self, ctx, *, query):
         await ctx.message.add_reaction(config.THINK_ICON)
         try:
             model = "llama-3.2-90b-vision-preview"
 
             history = [{"role": "user", "content": query}]
-            response_text, _ = await self.ai_gen(ctx.message, {}, model)
+            response_text, _ = await self.ai_gen(ctx.message, {}, model, query=query)
             history.append({"role": "assistant", "content": response_text})
 
             words_per_page = 148
@@ -316,6 +327,7 @@ class Fun(BaseCog):
             await ctx.message.remove_reaction(config.THINK_ICON, self.bot.user)
 
     @commands.group(name="tag", aliases=["tags"], invoke_without_command=True)
+    @commands.cooldown(3, 5, commands.BucketType.user)
     async def tag(self, ctx, tag_name: str):
         """get a tag by its name"""
         tag = await db.get_tag(guild_id=ctx.guild.id, name=tag_name)
@@ -327,6 +339,7 @@ class Fun(BaseCog):
             await ctx.reply(embed=self.error_embed(description="tag not found"))
 
     @tag.command(name="create", aliases=["new", "add", "update"])
+    @commands.cooldown(1, 15, commands.BucketType.user)
     async def create_tag(self, ctx, tag_name: str, *, description: str):
         """create or update a tag"""
         if tag_name in self.tags_blocked:
@@ -361,6 +374,7 @@ class Fun(BaseCog):
             )
 
     @tag.command(name="delete", aliases=["remove", "del", "rm"])
+    @commands.cooldown(1, 10, commands.BucketType.user)
     async def delete_tag(self, ctx, tag_name: str):
         """delete a tag if it belongs to the user"""
         tag = await db.get_tag(name=tag_name, guild_id=ctx.guild.id)
@@ -383,6 +397,7 @@ class Fun(BaseCog):
             )
 
     @tag.command(name="list")
+    @commands.cooldown(1, 5, commands.BucketType.user)
     async def list_tags(self, ctx, user: discord.Member | str | None = None):
         """list all tags"""
         tags = await db.get_tags(guild_id=ctx.guild.id)
@@ -410,6 +425,7 @@ class Fun(BaseCog):
             await self.paginate(ctx, pages)
 
     @tag.command(name="info")
+    @commands.cooldown(3, 5, commands.BucketType.user)
     async def tag_info(self, ctx, tag_name: str):
         """get information about a tag"""
         tag = await db.get_tag(name=tag_name, guild_id=ctx.guild.id)
@@ -443,6 +459,7 @@ class Fun(BaseCog):
             )
 
     @tag.command(name="rename", aliases=["rn"])
+    @commands.cooldown(1, 10, commands.BucketType.user)
     async def rename_tag(self, ctx, old_name: str, new_name: str):
         """rename a tag"""
         if new_name in ["create", "new", "delete", "remove", "del", "list", "info"]:
@@ -463,6 +480,7 @@ class Fun(BaseCog):
 
     @tag.command(name="reset", aliases=["deleteall", "delall", "rmall"])
     @commands.has_permissions(manage_guild=True)
+    @commands.cooldown(1, 30, commands.BucketType.user)
     async def reset_tags(self, ctx):
         """delete all tags"""
         tags = await db.get_tags(guild_id=ctx.guild.id)
@@ -473,6 +491,7 @@ class Fun(BaseCog):
         await ctx.reply(embed=self.success_embed(description="all tags deleted"))
 
     @tag.command(name="random", aliases=["rand"])
+    @commands.cooldown(3, 5, commands.BucketType.user)
     async def random_tag(self, ctx):
         """get a random tag"""
         tags = await db.get_tags(guild_id=ctx.guild.id)
@@ -484,6 +503,7 @@ class Fun(BaseCog):
         await ctx.reply(f"**{tag['name']}**\n> {tag['content']}")
 
     @tag.command(name="search", aliases=["find"])
+    @commands.cooldown(1, 5, commands.BucketType.user)
     async def search_tag(self, ctx, *, query):
         """search for a tag"""
         tags = await db.get_tags(guild_id=ctx.guild.id)
@@ -511,6 +531,7 @@ class Fun(BaseCog):
         await self.paginate(ctx, pages)
 
     @commands.command(name="urban", brief="get a random urban dictionary definition")
+    @commands.cooldown(1, 5, commands.BucketType.user)
     async def urban(self, ctx, *, query):
         """get a random urban dictionary definition"""
         try:
