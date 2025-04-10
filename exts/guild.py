@@ -1,5 +1,3 @@
-import datetime
-
 import discord
 from discord.ext import commands
 
@@ -206,7 +204,7 @@ class Guild(BaseCog):
             deleted = await ctx.channel.purge(limit=5)
             await ctx.send(
                 embed=self.success_embed(
-                    description=f"{ctx.channel.mention} deleted **{len(deleted)}** messages"
+                    description=f"{ctx.channel.mention} deleted **{len(deleted)}** message{'s' * (len(deleted) != 1)}"
                 ),
                 delete_after=10,
             )
@@ -219,7 +217,7 @@ class Guild(BaseCog):
                     deleted = await ctx.channel.purge(limit=limit)
                     await ctx.send(
                         embed=self.success_embed(
-                            description=f"{ctx.channel.mention} deleted **{len(deleted)}** messages"
+                            description=f"{ctx.channel.mention} deleted **{len(deleted)}** message{'s' * (len(deleted) != 1)}"
                         ),
                         delete_after=10,
                     )
@@ -235,102 +233,113 @@ class Guild(BaseCog):
             for arg in args:
                 try:
                     user_id = int(arg.strip("<@!>"))
-                    user = ctx.guild.get_member(user_id)
+                    user = ctx.guild.get_member(
+                        user_id
+                    ) or await ctx.guild.fetch_member(user_id)
                     if user:
                         users.append(user)
                         continue
-                except ValueError:
+                except (ValueError, discord.NotFound, discord.HTTPException):
                     pass
 
                 try:
                     channel_id = int(arg.strip("<#>"))
                     channel = ctx.guild.get_channel(channel_id)
-                    if channel:
+                    if isinstance(channel, discord.TextChannel):
                         channels.append(channel)
                         continue
-                except ValueError:
+                except (ValueError, AttributeError):
                     pass
 
                 try:
                     limit_val = int(arg)
-                    limit = limit_val
+                    if limit_val > 0:
+                        limit = min(limit_val, 2000)
                     continue
                 except ValueError:
                     pass
 
-                if arg in ["bot", "bots"]:
+                if arg.lower() in ["bot", "bots"]:
                     constraints.append(lambda m: m.author.bot)
+                # add more constraints here
 
             if not channels:
                 channels = [ctx.channel]
 
-            def check_message(message):
-                if message.channel not in channels:
-                    return False
-
+            def check_message(message: discord.Message) -> bool:
                 if users and message.author not in users:
                     return False
 
-                for constraint in constraints:
-                    if not constraint(message):
-                        return False
+                if not all(constraint(message) for constraint in constraints):
+                    return False
 
                 return True
 
-            deleted_count = 0
             messages_to_delete = []
-            search_limit = min(limit * 5, 1000)
+            search_depth = min(limit * 5, 1000)
 
             for channel in channels:
-                if deleted_count >= limit:
+                if len(messages_to_delete) >= limit:
                     break
 
-                async for message in channel.history(limit=search_limit):
-                    if check_message(message):
-                        messages_to_delete.append(message)
-                        deleted_count += 1
-                        if deleted_count >= limit:
-                            break
+                try:
+                    async for message in channel.history(limit=search_depth):
+                        if check_message(message):
+                            messages_to_delete.append(message)
+                            if len(messages_to_delete) >= limit:
+                                break
+                except discord.Forbidden:
+                    print(f"missing permissions to read history in {channel.mention}")
+                    continue
+                except discord.HTTPException as e:
+                    print(f"error fetching history in {channel.mention}: {e}")
+                    continue
 
-            if messages_to_delete:
-                two_weeks_ago = datetime.datetime.now(
-                    datetime.timezone.utc
-                ) - datetime.timedelta(days=14)
-                recent_messages = [
-                    msg for msg in messages_to_delete if msg.created_at > two_weeks_ago
-                ]
-                old_messages = [
-                    msg for msg in messages_to_delete if msg.created_at <= two_weeks_ago
-                ]
+            messages_to_delete = messages_to_delete[:limit]
 
-                channel_messages = {}
-                for msg in recent_messages:
-                    if msg.channel not in channel_messages:
-                        channel_messages[msg.channel] = []
-                    channel_messages[msg.channel].append(msg)
-
-                messages_per_bulk = 100
-                for channel, msgs, i in channel_messages.items():
-                    msgs = msgs[i * messages_per_bulk : (i + 1) * messages_per_bulk]
-                    if msgs:
-                        await channel.delete_messages(msgs)
-
-                for message in old_messages:
-                    await message.delete()
-
-                await ctx.send(
-                    embed=self.success_embed(
-                        description=f"deleted **{len(messages_to_delete)}** messages"
-                    ),
-                    delete_after=10,
-                )
-            else:
+            if not messages_to_delete:
                 await ctx.send(
                     embed=self.warning_embed(
                         description="no messages matched your criteria"
                     ),
                     delete_after=10,
                 )
+                return
+
+            grouped_messages = {}
+            for msg in messages_to_delete:
+                if msg.channel not in grouped_messages:
+                    grouped_messages[msg.channel] = []
+                grouped_messages[msg.channel].append(msg)
+
+            total_deleted_count = 0
+            for channel, msgs in grouped_messages.items():
+                try:
+                    await channel.delete_messages(msgs)
+                    total_deleted_count += len(msgs)
+                except discord.Forbidden:
+                    await ctx.send(
+                        embed=self.error_embed(
+                            description=f"missing permissions to delete messages in {channel.mention}"
+                        ),
+                        delete_after=10,
+                    )
+                except discord.HTTPException as e:
+                    await ctx.send(
+                        embed=self.error_embed(
+                            description=f"Failed to delete messages in {channel.mention}: {e}"
+                        ),
+                        delete_after=10,
+                    )
+                except discord.NotFound:
+                    pass
+
+            await ctx.send(
+                embed=self.success_embed(
+                    description=f"deleted **{total_deleted_count}** message{'s' * (len(total_deleted_count) != 1)}"
+                ),
+                delete_after=10,
+            )
 
     @commands.command(
         name="lockdown", brief="Lockdown all channels", aliases=["lockall", "unlockall"]

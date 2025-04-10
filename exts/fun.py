@@ -1,19 +1,19 @@
 import asyncio
-import os
 import io
+import os
 import random
+import re
 import string
+import traceback
 from itertools import islice
 from urllib.parse import urlparse
 
 import discord
-import traceback
-import re
 import dotenv
 import duckduckgo_images_api
 import googlesearch
+from discord import File, ui
 from discord.ext import commands
-from discord import ui, File
 from groq import AsyncGroq
 
 import config
