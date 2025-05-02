@@ -9,7 +9,7 @@ class Guild(BaseCog):
     @commands.command()
     @commands.has_permissions(manage_channels=True)
     async def lock(self, ctx, *channels: discord.TextChannel | discord.VoiceChannel):
-        """Make a channel read-only"""
+        """make channel read-only"""
         channels = channels or [ctx.channel]
         if len(channels) > 1:
             await ctx.message.add_reaction(config.THINK_ICON)
@@ -34,7 +34,7 @@ class Guild(BaseCog):
     @commands.command()
     @commands.has_permissions(manage_channels=True)
     async def unlock(self, ctx, *channels: discord.TextChannel | discord.VoiceChannel):
-        """Unlock a channel"""
+        """unlock channel"""
         channels = channels or [ctx.channel]
         if len(channels) > 1:
             await ctx.message.add_reaction(config.THINK_ICON)
@@ -59,7 +59,7 @@ class Guild(BaseCog):
     @commands.command()
     @commands.has_permissions(manage_channels=True)
     async def hide(self, ctx, *channels: discord.TextChannel | discord.VoiceChannel):
-        """Hide a channel from members"""
+        """hide channel from members"""
         channels = channels or [ctx.channel]
         if len(channels) > 1:
             await ctx.message.add_reaction(config.THINK_ICON)
@@ -83,7 +83,7 @@ class Guild(BaseCog):
     @commands.command()
     @commands.has_permissions(manage_channels=True)
     async def show(self, ctx, *channels: discord.TextChannel | discord.VoiceChannel):
-        """Show a hidden channel"""
+        """show hidden channel"""
         channels = channels or [ctx.channel]
         if len(channels) > 1:
             await ctx.message.add_reaction(config.THINK_ICON)
@@ -112,7 +112,7 @@ class Guild(BaseCog):
         seconds: int,
         *channels: discord.TextChannel | discord.VoiceChannel,
     ):
-        """Set slowmode for a channel"""
+        """set slowmode for channel"""
         if seconds < 0 or seconds > 21600:
             return await ctx.reply(
                 embed=self.error_embed(
@@ -159,7 +159,7 @@ class Guild(BaseCog):
     @commands.command(name="slowall", brief="Set slowmode for all channels")
     @commands.has_permissions(manage_channels=True)
     async def slowall(self, ctx, seconds: int):
-        """Set slowmode for all channels"""
+        """set slowmode for all channels"""
         if seconds < 0 or seconds > 21600:
             return await ctx.reply(
                 embed=self.error_embed(
@@ -197,156 +197,196 @@ class Guild(BaseCog):
     )
     @commands.has_permissions(manage_messages=True)
     async def purge(self, ctx, *args):
-        """Delete messages in a channel"""
-        await ctx.message.delete()
+        """delete messages in channel"""
+        try:
+            await ctx.message.delete()
+        except (discord.Forbidden, discord.NotFound, discord.HTTPException):
+            pass
+
+        limit = 5
+        users = []
+        channels = []
+        constraints = []
 
         if not args:
-            deleted = await ctx.channel.purge(limit=5)
-            await ctx.send(
-                embed=self.success_embed(
-                    description=f"{ctx.channel.mention} deleted **{len(deleted)}** message{'s' * (len(deleted) != 1)}"
-                ),
-                delete_after=10,
-            )
-            return
+            try:
+                deleted = await ctx.channel.purge(limit=limit)
+                await self._send_purge_success(ctx, ctx.channel, len(deleted))
+                return
+            except Exception as e:
+                return await self._send_purge_error(ctx, ctx.channel, e)
+
+        if len(args) == 1 and args[0].isdigit():
+            try:
+                limit = min(int(args[0]), 2000)
+                deleted = await ctx.channel.purge(limit=limit)
+                await self._send_purge_success(ctx, ctx.channel, len(deleted))
+                return
+            except Exception as e:
+                return await self._send_purge_error(ctx, ctx.channel, e)
 
         async with ctx.channel.typing():
-            if len(args) == 1 and args[0].isdigit():
-                try:
-                    limit = int(args[0])
-                    deleted = await ctx.channel.purge(limit=limit)
-                    await ctx.send(
-                        embed=self.success_embed(
-                            description=f"{ctx.channel.mention} deleted **{len(deleted)}** message{'s' * (len(deleted) != 1)}"
-                        ),
-                        delete_after=10,
-                    )
-                    return
-                except ValueError:
-                    pass
-
-            constraints = []
-            users = []
-            channels = []
-            limit = 5
-
             for arg in args:
-                try:
-                    user_id = int(arg.strip("<@!>"))
-                    user = ctx.guild.get_member(
-                        user_id
-                    ) or await ctx.guild.fetch_member(user_id)
-                    if user:
-                        users.append(user)
-                        continue
-                except (ValueError, discord.NotFound, discord.HTTPException):
-                    pass
+                if arg.startswith("<@") and arg.endswith(">"):
+                    try:
+                        user_id = int(arg.strip("<@!>"))
+                        user = ctx.guild.get_member(user_id)
+                        if not user:
+                            try:
+                                user = await ctx.guild.fetch_member(user_id)
+                            except (discord.NotFound, discord.HTTPException):
+                                continue
+                        if user:
+                            users.append(user)
+                            continue
+                    except ValueError:
+                        pass
 
-                try:
-                    channel_id = int(arg.strip("<#>"))
-                    channel = ctx.guild.get_channel(channel_id)
-                    if isinstance(channel, discord.TextChannel):
-                        channels.append(channel)
-                        continue
-                except (ValueError, AttributeError):
-                    pass
+                if arg.startswith("<#") and arg.endswith(">"):
+                    try:
+                        channel_id = int(arg.strip("<#>"))
+                        channel = ctx.guild.get_channel(channel_id)
+                        if isinstance(channel, discord.TextChannel):
+                            channels.append(channel)
+                            continue
+                    except ValueError:
+                        pass
 
-                try:
+                if arg.isdigit():
                     limit_val = int(arg)
                     if limit_val > 0:
                         limit = min(limit_val, 2000)
-                    continue
-                except ValueError:
-                    pass
+                        continue
 
                 if arg.lower() in ["bot", "bots"]:
                     constraints.append(lambda m: m.author.bot)
-                # add more constraints here
 
             if not channels:
                 channels = [ctx.channel]
 
-            def check_message(message: discord.Message) -> bool:
+            def check_message(message):
+                if message.id == ctx.message.id:
+                    return False
+
                 if users and message.author not in users:
                     return False
 
-                if not all(constraint(message) for constraint in constraints):
-                    return False
+                for constraint in constraints:
+                    if not constraint(message):
+                        return False
 
                 return True
 
-            messages_to_delete = []
-            search_depth = min(limit * 5, 1000)
+            total_deleted = 0
+            errors = []
 
             for channel in channels:
-                if len(messages_to_delete) >= limit:
-                    break
-
                 try:
-                    async for message in channel.history(limit=search_depth):
+                    messages_to_delete = []
+                    search_limit = min(limit * 3, 1000)
+
+                    async for message in channel.history(limit=search_limit):
                         if check_message(message):
                             messages_to_delete.append(message)
                             if len(messages_to_delete) >= limit:
                                 break
+
+                    if not messages_to_delete:
+                        continue
+
+                    import datetime
+
+                    two_weeks_ago = datetime.datetime.now(
+                        datetime.timezone.utc
+                    ) - datetime.timedelta(days=14)
+
+                    recent_messages = [
+                        msg
+                        for msg in messages_to_delete
+                        if msg.created_at > two_weeks_ago
+                    ]
+                    old_messages = [
+                        msg
+                        for msg in messages_to_delete
+                        if msg.created_at <= two_weeks_ago
+                    ]
+
+                    if recent_messages:
+                        if len(recent_messages) == 1:
+                            await recent_messages[0].delete()
+                            total_deleted += 1
+                        else:
+                            deleted = await channel.delete_messages(recent_messages)
+                            total_deleted += len(recent_messages)
+
+                    for old_msg in old_messages:
+                        try:
+                            await old_msg.delete()
+                            total_deleted += 1
+                        except (
+                            discord.Forbidden,
+                            discord.NotFound,
+                            discord.HTTPException,
+                        ):
+                            pass
+
                 except discord.Forbidden:
-                    print(f"missing permissions to read history in {channel.mention}")
-                    continue
+                    errors.append(f"Missing permissions in {channel.mention}")
                 except discord.HTTPException as e:
-                    print(f"error fetching history in {channel.mention}: {e}")
-                    continue
+                    errors.append(f"Error in {channel.mention}: {str(e)}")
+                except Exception as e:
+                    errors.append(f"Unexpected error in {channel.mention}: {str(e)}")
 
-            messages_to_delete = messages_to_delete[:limit]
-
-            if not messages_to_delete:
+            if total_deleted == 0:
+                if errors:
+                    error_msg = "\n".join(errors)
+                    await ctx.send(
+                        embed=self.error_embed(
+                            description=f"Failed to delete messages:\n{error_msg}"
+                        ),
+                        delete_after=10,
+                    )
+                else:
+                    await ctx.send(
+                        embed=self.warning_embed(
+                            description="No messages matched your criteria"
+                        ),
+                        delete_after=10,
+                    )
+            else:
+                plural = "" if total_deleted == 1 else "s"
                 await ctx.send(
-                    embed=self.warning_embed(
-                        description="no messages matched your criteria"
+                    embed=self.success_embed(
+                        description=f"Deleted **{total_deleted}** message{plural}"
                     ),
                     delete_after=10,
                 )
-                return
 
-            grouped_messages = {}
-            for msg in messages_to_delete:
-                if msg.channel not in grouped_messages:
-                    grouped_messages[msg.channel] = []
-                grouped_messages[msg.channel].append(msg)
+    async def _send_purge_success(self, ctx, channel, count):
+        """helper method send purge success message"""
+        plural = "" if count == 1 else "s"
+        await ctx.send(
+            embed=self.success_embed(
+                description=f"{channel.mention} deleted **{count}** message{plural}"
+            ),
+            delete_after=10,
+        )
 
-            total_deleted_count = 0
-            for channel, msgs in grouped_messages.items():
-                try:
-                    await channel.delete_messages(msgs)
-                    total_deleted_count += len(msgs)
-                except discord.Forbidden:
-                    await ctx.send(
-                        embed=self.error_embed(
-                            description=f"missing permissions to delete messages in {channel.mention}"
-                        ),
-                        delete_after=10,
-                    )
-                except discord.HTTPException as e:
-                    await ctx.send(
-                        embed=self.error_embed(
-                            description=f"Failed to delete messages in {channel.mention}: {e}"
-                        ),
-                        delete_after=10,
-                    )
-                except discord.NotFound:
-                    pass
-
-            await ctx.send(
-                embed=self.success_embed(
-                    description=f"deleted **{total_deleted_count}** message{'s' * (len(total_deleted_count) != 1)}"
-                ),
-                delete_after=10,
-            )
+    async def _send_purge_error(self, ctx, channel, error):
+        """helper method send purge error message"""
+        await ctx.send(
+            embed=self.error_embed(
+                description=f"Failed to delete messages in {channel.mention}: {str(error)}"
+            ),
+            delete_after=10,
+        )
 
     @commands.command(
         name="lockdown", brief="Lockdown all channels", aliases=["lockall", "unlockall"]
     )
     @commands.has_permissions(manage_channels=True)
     async def lockdown(self, ctx):
-        """Make all channels read-only"""
+        """make all channels read-only"""
         role = ctx.guild.default_role
         perms = role.permissions
 
@@ -368,7 +408,7 @@ class Guild(BaseCog):
     )
     @commands.has_permissions(manage_guild=True)
     async def invites(self, ctx):
-        """view invites for the server"""
+        """view invites for server"""
         invites = await ctx.guild.invites()
         if not invites:
             return await ctx.reply(

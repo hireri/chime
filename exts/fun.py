@@ -40,16 +40,17 @@ class ReplyModal(ui.Modal):
 
         self.history.append({"role": "user", "content": self.user_input.value})
 
-        model = "llama-3.2-90b-vision-preview"
+        model = "llama3-70b-8192"
 
         messages = []
+
         for entry in self.history:
             if entry["role"] == "user":
                 messages.append(
                     {
                         "role": "user",
                         "content": [{"type": "text", "text": entry["content"]}],
-                    }
+                    },
                 )
             else:
                 messages.append({"role": "assistant", "content": entry["content"]})
@@ -237,27 +238,29 @@ class Fun(BaseCog):
         query=None,
     ) -> str:
         client = AsyncGroq(api_key=os.getenv("AI_KEY"))
-        messages = [
-            {
-                "role": "user",
-                "content": [
-                    {"type": "text", "text": message.content if not query else query}
-                ],
-            }
-        ]
-        if message.attachments and message.attachments[0].content_type.startswith(
-            "image/"
-        ):
-            messages[0]["content"].append(
-                {
-                    "type": "image_url",
-                    "image_url": {"url": message.attachments[0].url},
-                }
-            )
+        message = {
+            "role": "user",
+            "content": [
+                {"type": "text", "text": message.content if not query else query}
+            ],
+        }
+
+        history.append(message)
+
+        # Image support deprecated
+        # if message.attachments and message.attachments[0].content_type.startswith(
+        #     "image/"
+        # ):
+        #     messages[0]["content"].append(
+        #         {
+        #             "type": "image_url",
+        #             "image_url": {"url": message.attachments[0].url},
+        #         }
+        #     )
 
         response = await client.chat.completions.create(
             model=model,
-            messages=messages,
+            messages=history,
             max_completion_tokens=1024,
         )
 
@@ -268,10 +271,12 @@ class Fun(BaseCog):
     async def ai(self, ctx, *, query):
         await ctx.message.add_reaction(config.THINK_ICON)
         try:
-            model = "llama-3.2-90b-vision-preview"
-
-            history = [{"role": "user", "content": query}]
-            response_text, _ = await self.ai_gen(ctx.message, {}, model, query=query)
+            model = "llama3-70b-8192"
+            with open("system_prompt.txt", "r") as f:
+                history = [{"role": "system", "content": f.read()}]
+            response_text, _ = await self.ai_gen(
+                ctx.message, history, model, query=query
+            )
             history.append({"role": "assistant", "content": response_text})
 
             words_per_page = 148
@@ -332,7 +337,7 @@ class Fun(BaseCog):
     @commands.group(name="tag", aliases=["tags"], invoke_without_command=True)
     @commands.cooldown(3, 5, commands.BucketType.user)
     async def tag(self, ctx, tag_name: str):
-        """get a tag by its name"""
+        """get tag by its name"""
         tag = await db.get_tag(guild_id=ctx.guild.id, name=tag_name)
 
         if tag:
@@ -344,7 +349,7 @@ class Fun(BaseCog):
     @tag.command(name="create", aliases=["new", "add", "update"])
     @commands.cooldown(1, 15, commands.BucketType.user)
     async def create_tag(self, ctx, tag_name: str, *, description: str):
-        """create or update a tag"""
+        """create or update tag"""
         if tag_name in self.tags_blocked:
             return await ctx.reply(
                 embed=self.error_embed(description="invalid tag name")
@@ -379,7 +384,7 @@ class Fun(BaseCog):
     @tag.command(name="delete", aliases=["remove", "del", "rm"])
     @commands.cooldown(1, 10, commands.BucketType.user)
     async def delete_tag(self, ctx, tag_name: str):
-        """delete a tag if it belongs to the user"""
+        """delete tag if it belongs user"""
         tag = await db.get_tag(name=tag_name, guild_id=ctx.guild.id)
         if tag:
             if tag["user_id"] != ctx.author.id:
@@ -430,7 +435,7 @@ class Fun(BaseCog):
     @tag.command(name="info")
     @commands.cooldown(3, 5, commands.BucketType.user)
     async def tag_info(self, ctx, tag_name: str):
-        """get information about a tag"""
+        """get information about tag"""
         tag = await db.get_tag(name=tag_name, guild_id=ctx.guild.id)
         if tag:
             embed = discord.Embed(
@@ -464,7 +469,7 @@ class Fun(BaseCog):
     @tag.command(name="rename", aliases=["rn"])
     @commands.cooldown(1, 10, commands.BucketType.user)
     async def rename_tag(self, ctx, old_name: str, new_name: str):
-        """rename a tag"""
+        """rename tag"""
         if new_name in ["create", "new", "delete", "remove", "del", "list", "info"]:
             return await ctx.reply(
                 embed=self.error_embed(description="invalid tag name")
@@ -496,7 +501,7 @@ class Fun(BaseCog):
     @tag.command(name="random", aliases=["rand"])
     @commands.cooldown(3, 5, commands.BucketType.user)
     async def random_tag(self, ctx):
-        """get a random tag"""
+        """get random tag"""
         tags = await db.get_tags(guild_id=ctx.guild.id)
         if not tags:
             return await ctx.reply(embed=self.error_embed(description="no tags found"))
@@ -508,7 +513,7 @@ class Fun(BaseCog):
     @tag.command(name="search", aliases=["find"])
     @commands.cooldown(1, 5, commands.BucketType.user)
     async def search_tag(self, ctx, *, query):
-        """search for a tag"""
+        """search for tag"""
         tags = await db.get_tags(guild_id=ctx.guild.id)
         if not tags:
             return await ctx.reply(embed=self.error_embed(description="no tags found"))
@@ -538,7 +543,7 @@ class Fun(BaseCog):
     )
     @commands.cooldown(1, 5, commands.BucketType.user)
     async def urban(self, ctx, *, query):
-        """get a random urban dictionary definition"""
+        """get random urban dictionary definition"""
 
         def linkify(text: str) -> str:
             return re.sub(
