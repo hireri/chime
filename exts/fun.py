@@ -230,41 +230,16 @@ class Fun(BaseCog):
             await ctx.reply(embed=self.error_embed(description="no results found"))
         await ctx.message.remove_reaction(config.THINK_ICON, self.bot.user)
 
-    async def ai_gen(
-        self,
-        message,
-        history,
-        model,
-        query=None,
-    ) -> str:
+    async def ai_gen(self, messages, model) -> str:
         client = AsyncGroq(api_key=os.getenv("AI_KEY"))
-        message = {
-            "role": "user",
-            "content": [
-                {"type": "text", "text": message.content if not query else query}
-            ],
-        }
-
-        history.append(message)
-
-        # Image support deprecated
-        # if message.attachments and message.attachments[0].content_type.startswith(
-        #     "image/"
-        # ):
-        #     messages[0]["content"].append(
-        #         {
-        #             "type": "image_url",
-        #             "image_url": {"url": message.attachments[0].url},
-        #         }
-        #     )
 
         response = await client.chat.completions.create(
             model=model,
-            messages=history,
+            messages=messages,
             max_completion_tokens=1024,
         )
 
-        return response.choices[0].message.content, history
+        return response.choices[0].message.content
 
     @commands.command(name="ai", brief="talk to ai")
     @commands.cooldown(1, 60, commands.BucketType.user)
@@ -273,10 +248,10 @@ class Fun(BaseCog):
         try:
             model = "llama3-70b-8192"
             with open("system_prompt.txt", "r") as f:
-                history = [{"role": "system", "content": f.read()}]
-            response_text, _ = await self.ai_gen(
-                ctx.message, history, model, query=query
-            )
+                system_prompt = [{"role": "system", "content": f.read()}]
+            history = system_prompt
+            history.append({"role": "user", "content": query})
+            response_text = await self.ai_gen(history, model)
             history.append({"role": "assistant", "content": response_text})
 
             words_per_page = 148
@@ -337,7 +312,7 @@ class Fun(BaseCog):
     @commands.group(name="tag", aliases=["tags"], invoke_without_command=True)
     @commands.cooldown(3, 5, commands.BucketType.user)
     async def tag(self, ctx, tag_name: str):
-        """get tag by its name"""
+        """get a tag by its name"""
         tag = await db.get_tag(guild_id=ctx.guild.id, name=tag_name)
 
         if tag:
@@ -349,7 +324,7 @@ class Fun(BaseCog):
     @tag.command(name="create", aliases=["new", "add", "update"])
     @commands.cooldown(1, 15, commands.BucketType.user)
     async def create_tag(self, ctx, tag_name: str, *, description: str):
-        """create or update tag"""
+        """create or update a tag"""
         if tag_name in self.tags_blocked:
             return await ctx.reply(
                 embed=self.error_embed(description="invalid tag name")
@@ -384,7 +359,7 @@ class Fun(BaseCog):
     @tag.command(name="delete", aliases=["remove", "del", "rm"])
     @commands.cooldown(1, 10, commands.BucketType.user)
     async def delete_tag(self, ctx, tag_name: str):
-        """delete tag if it belongs user"""
+        """delete a tag if it belongs to the user"""
         tag = await db.get_tag(name=tag_name, guild_id=ctx.guild.id)
         if tag:
             if tag["user_id"] != ctx.author.id:
@@ -435,7 +410,7 @@ class Fun(BaseCog):
     @tag.command(name="info")
     @commands.cooldown(3, 5, commands.BucketType.user)
     async def tag_info(self, ctx, tag_name: str):
-        """get information about tag"""
+        """get information about a tag"""
         tag = await db.get_tag(name=tag_name, guild_id=ctx.guild.id)
         if tag:
             embed = discord.Embed(
@@ -469,7 +444,7 @@ class Fun(BaseCog):
     @tag.command(name="rename", aliases=["rn"])
     @commands.cooldown(1, 10, commands.BucketType.user)
     async def rename_tag(self, ctx, old_name: str, new_name: str):
-        """rename tag"""
+        """rename a tag"""
         if new_name in ["create", "new", "delete", "remove", "del", "list", "info"]:
             return await ctx.reply(
                 embed=self.error_embed(description="invalid tag name")
@@ -501,7 +476,7 @@ class Fun(BaseCog):
     @tag.command(name="random", aliases=["rand"])
     @commands.cooldown(3, 5, commands.BucketType.user)
     async def random_tag(self, ctx):
-        """get random tag"""
+        """get a random tag"""
         tags = await db.get_tags(guild_id=ctx.guild.id)
         if not tags:
             return await ctx.reply(embed=self.error_embed(description="no tags found"))
@@ -513,7 +488,7 @@ class Fun(BaseCog):
     @tag.command(name="search", aliases=["find"])
     @commands.cooldown(1, 5, commands.BucketType.user)
     async def search_tag(self, ctx, *, query):
-        """search for tag"""
+        """search for a tag"""
         tags = await db.get_tags(guild_id=ctx.guild.id)
         if not tags:
             return await ctx.reply(embed=self.error_embed(description="no tags found"))
@@ -543,7 +518,7 @@ class Fun(BaseCog):
     )
     @commands.cooldown(1, 5, commands.BucketType.user)
     async def urban(self, ctx, *, query):
-        """get random urban dictionary definition"""
+        """get a random urban dictionary definition"""
 
         def linkify(text: str) -> str:
             return re.sub(
