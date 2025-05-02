@@ -8,7 +8,7 @@ from discord.ext import commands
 
 from .database import db
 from .prefixes import get_prefix_callable
-from .utils import would_invoke_command
+from .utils import would_invoke
 
 logger = logging.getLogger(__name__)
 
@@ -91,7 +91,7 @@ class Core(commands.AutoShardedBot):
         ):
             return
 
-        if await would_invoke_command(self, message):
+        if await would_invoke(self, message):
             await db.update_user(message.author.id, message.author.name)
 
         await self.process_commands(message)

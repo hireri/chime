@@ -4,7 +4,7 @@ from discord.ext import commands
 from .prefixes import prefix_manager
 
 
-async def would_invoke_command(
+async def would_invoke(
     bot: commands.Bot, message: discord.Message, command_name: str = None
 ) -> bool:
     prefixes = await prefix_manager.get_prefix(bot, message)

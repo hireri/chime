@@ -10,7 +10,7 @@ from rembg import remove
 import config
 from core.basecog import BaseCog
 from core.database import db
-from core.utils import would_invoke_command
+from core.utils import would_invoke
 
 
 class Misc(BaseCog):
@@ -81,7 +81,7 @@ class Misc(BaseCog):
         if message.author.bot or not message.guild:
             return
 
-        if await would_invoke_command(self.bot, message, command_name="afk"):
+        if await would_invoke(self.bot, message, command_name="afk"):
             return
 
         author_afk = await db.get_afk(
