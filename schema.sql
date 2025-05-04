@@ -1,4 +1,3 @@
--- Main tables for entity data
 CREATE TABLE IF NOT EXISTS guilds (
     id BIGINT PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
@@ -13,17 +12,15 @@ CREATE TABLE IF NOT EXISTS users (
     last_active TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Specialized table for prefixes
 CREATE TABLE IF NOT EXISTS prefixes (
     id SERIAL PRIMARY KEY,
-    entity_type VARCHAR(10) NOT NULL, -- 'guild' or 'user'
+    entity_type VARCHAR(10) NOT NULL, 
     entity_id BIGINT NOT NULL,
     prefix VARCHAR(10) NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     UNIQUE(entity_type, entity_id)
 );
 
--- Index for faster lookups
 CREATE INDEX IF NOT EXISTS idx_prefixes_lookup ON prefixes(entity_type, entity_id);
 
 CREATE TABLE IF NOT EXISTS tags (
